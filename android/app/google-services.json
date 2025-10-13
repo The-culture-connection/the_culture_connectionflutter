@@ -1,0 +1,118 @@
+{
+  "project_info": {
+    "project_number": "809968040469",
+    "project_id": "culture-connection-d442f",
+    "storage_bucket": "culture-connection-d442f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:809968040469:android:6749d9c7739ec5b678ec1c",
+        "android_client_info": {
+          "package_name": "com.example.culture_connection"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "809968040469-lqfflkg30707ve0rrrqh26vpd911gtnr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhynDC6aj2TMBu4skY9hBCOqAHa8BsHCU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "809968040469-lqfflkg30707ve0rrrqh26vpd911gtnr.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "809968040469-0fdb68ltn9v900pp57v61k65g7p7jn2v.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "D9tingoty.CultureConnect"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:809968040469:android:b46a30e1fe1bdc6f78ec1c",
+        "android_client_info": {
+          "package_name": "com.example.the_culture_connection"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "809968040469-lqfflkg30707ve0rrrqh26vpd911gtnr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhynDC6aj2TMBu4skY9hBCOqAHa8BsHCU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "809968040469-lqfflkg30707ve0rrrqh26vpd911gtnr.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "809968040469-0fdb68ltn9v900pp57v61k65g7p7jn2v.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "D9tingoty.CultureConnect"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:809968040469:android:462ccb190b4e12f678ec1c",
+        "android_client_info": {
+          "package_name": "com.thecultureconnection.culture_connection"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "809968040469-lqfflkg30707ve0rrrqh26vpd911gtnr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhynDC6aj2TMBu4skY9hBCOqAHa8BsHCU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "809968040469-lqfflkg30707ve0rrrqh26vpd911gtnr.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "809968040469-0fdb68ltn9v900pp57v61k65g7p7jn2v.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "D9tingoty.CultureConnect"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

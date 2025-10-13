@@ -1,0 +1,60 @@
+name: culture_connection
+description: Culture Connection (Flutter)
+publish_to: "none"  # remove if you plan to publish to pub.dev
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Routing & state
+  go_router: ^14.0.0
+  flutter_riverpod: ^2.5.0
+  # Firebase
+  firebase_core: ^3.5.0
+  firebase_auth: ^5.3.0
+  cloud_firestore: ^5.4.0
+  firebase_storage: ^12.3.0
+  firebase_messaging: ^15.0.0
+  firebase_analytics: ^11.3.0
+
+  # Optional
+  # flutter_dotenv: ^5.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.1
+
+flutter:
+  uses-material-design: true
+
+  # If you’re adding icons/splash images later, make sure files exist first.
+  # assets:
+  #   - assets/icon.png
+  #   - assets/splash.png
+
+# flutter_launcher_icons:
+#   android: true
+#   ios: true
+#   image_path: assets/icon.png
+
+# flutter_native_splash:
+#   color: "#ffffff"
+#   image: assets/splash.png
+#   android_12:
+#     image: assets/splash.png
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icon.png
+
+flutter_native_splash:
+  color: "#ffffff"
+  image: assets/Startingimage7.png
+  android_12:
+    image: assets/Startingimage7.png
