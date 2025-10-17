@@ -259,15 +259,10 @@ class FirestoreService {
 
   /// Stream businesses
   Stream<List<Business>> streamBusinesses({String? category, String? cityKey}) {
-    Query query = _businessesCollection;
+    Query query = _businessesCollection.orderBy('createdAt', descending: true);
     
-    if (category != null) {
-      query = query.where('categories', arrayContains: category);
-    }
-    
-    if (cityKey != null) {
-      query = query.where('cityKey', isEqualTo: cityKey);
-    }
+    // Note: Firestore doesn't support filtering on old field structure
+    // Just return all businesses and filter in UI
     
     return query.snapshots().map((snapshot) => snapshot.docs
         .map((doc) => Business.fromFirestore(doc))
@@ -376,7 +371,7 @@ class FirestoreService {
   /// Stream forums
   Stream<List<Forum>> streamForums() {
     return _forumsCollection
-        .orderBy('timestamp', descending: true)
+        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => Forum.fromFirestore(doc))
@@ -423,42 +418,25 @@ class FirestoreService {
 
   // ============ BUSINESS DIRECTORY OPERATIONS ============
 
-  /// Create forum
-  Future<String> createForum(Forum forum) async {
-    final docRef = await _forumsCollection.add(forum.toFirestore());
-    return docRef.id;
-  }
-
-  /// Stream all businesses
-  Stream<List<Business>> streamBusinesses() {
-    return _db
-        .collection('businesses')
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Business.fromFirestore(doc))
-            .toList());
-  }
-
   /// Create business
   Future<String> createBusiness(Business business) async {
-    final docRef = await _db.collection('businesses').add(business.toFirestore());
+    final docRef = await _businessesCollection.add(business.toFirestore());
     return docRef.id;
   }
 
   /// Update business
   Future<void> updateBusiness(String businessId, Business business) async {
-    await _db.collection('businesses').doc(businessId).update(business.toFirestore());
+    await _businessesCollection.doc(businessId).update(business.toFirestore());
   }
 
   /// Delete business
   Future<void> deleteBusiness(String businessId) async {
-    await _db.collection('businesses').doc(businessId).delete();
+    await _businessesCollection.doc(businessId).delete();
   }
 
   /// Get business by ID
   Future<Business?> getBusiness(String businessId) async {
-    final doc = await _db.collection('businesses').doc(businessId).get();
+    final doc = await _businessesCollection.doc(businessId).get();
     if (!doc.exists) return null;
     return Business.fromFirestore(doc);
   }

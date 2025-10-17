@@ -496,7 +496,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                       TextButton(
                         onPressed: () {
                           Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (_) => const LoginScreen()),
+                            MaterialPageRoute(builder: (_) => LoginScreen()),
                           );
                         },
                         child: const Text(
