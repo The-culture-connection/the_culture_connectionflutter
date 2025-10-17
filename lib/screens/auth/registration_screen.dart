@@ -12,6 +12,7 @@ import '../../services/storage_service.dart';
 import '../../services/firestore_service.dart';
 import '../../models/user_profile.dart';
 import '../../utils/validators.dart';
+import 'login_screen.dart';
 
 class RegistrationScreen extends ConsumerStatefulWidget {
   const RegistrationScreen({super.key});
@@ -496,7 +497,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                       TextButton(
                         onPressed: () {
                           Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (_) => LoginScreen()),
+                            MaterialPageRoute(builder: (_) => const LoginScreen()),
                           );
                         },
                         child: const Text(
