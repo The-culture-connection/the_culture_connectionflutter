@@ -48,27 +48,44 @@ class CultureConnectionApp extends ConsumerWidget {
       ),
       home: authState.when(
         data: (user) {
+          print('🔐 Auth State Changed - User: ${user?.uid ?? 'null'}');
           if (user != null) {
+            print('✅ Navigating to MainNavigationScreen');
             return const MainNavigationScreen();
           } else {
+            print('❌ Navigating to LoginScreen');
             return const LoginScreen();
           }
         },
-        loading: () => const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(
-              color: AppColors.electricOrange,
+        loading: () {
+          print('⏳ Auth State Loading...');
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(
+                color: AppColors.electricOrange,
+              ),
             ),
-          ),
-        ),
-        error: (error, stack) => Scaffold(
-          body: Center(
-            child: Text(
-              'Error: $error',
-              style: const TextStyle(color: Colors.white),
+          );
+        },
+        error: (error, stack) {
+          print('❌ Auth State Error: $error');
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error, color: Colors.red, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error: $error',
+                    style: const TextStyle(color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
