@@ -420,4 +420,46 @@ class FirestoreService {
         .doc(proposalId)
         .update({'status': status});
   }
+
+  // ============ BUSINESS DIRECTORY OPERATIONS ============
+
+  /// Create forum
+  Future<String> createForum(Forum forum) async {
+    final docRef = await _forumsCollection.add(forum.toFirestore());
+    return docRef.id;
+  }
+
+  /// Stream all businesses
+  Stream<List<Business>> streamBusinesses() {
+    return _db
+        .collection('businesses')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Business.fromFirestore(doc))
+            .toList());
+  }
+
+  /// Create business
+  Future<String> createBusiness(Business business) async {
+    final docRef = await _db.collection('businesses').add(business.toFirestore());
+    return docRef.id;
+  }
+
+  /// Update business
+  Future<void> updateBusiness(String businessId, Business business) async {
+    await _db.collection('businesses').doc(businessId).update(business.toFirestore());
+  }
+
+  /// Delete business
+  Future<void> deleteBusiness(String businessId) async {
+    await _db.collection('businesses').doc(businessId).delete();
+  }
+
+  /// Get business by ID
+  Future<Business?> getBusiness(String businessId) async {
+    final doc = await _db.collection('businesses').doc(businessId).get();
+    if (!doc.exists) return null;
+    return Business.fromFirestore(doc);
+  }
 }

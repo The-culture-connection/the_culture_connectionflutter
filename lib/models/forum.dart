@@ -2,71 +2,64 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Forum Model
 class Forum {
-  final String id;
-  final String title;
+  final String forumId;
+  final String forumName;
+  final String? forumDescription;
   final String createdBy;
-  final DateTime timestamp;
-  final String? description;
-  final List<String> members;
-  final int messageCount;
+  final DateTime createdAt;
+  final int memberCount;
+  final int postCount;
 
   Forum({
-    required this.id,
-    required this.title,
+    required this.forumId,
+    required this.forumName,
+    this.forumDescription,
     required this.createdBy,
-    required this.timestamp,
-    this.description,
-    this.members = const [],
-    this.messageCount = 0,
+    required this.createdAt,
+    this.memberCount = 1,
+    this.postCount = 0,
   });
 
   /// Create from Firestore document
   factory Forum.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Forum(
-      id: doc.id,
-      title: data['title'] ?? '',
+      forumId: doc.id,
+      forumName: data['forumName'] ?? '',
+      forumDescription: data['forumDescription'],
       createdBy: data['createdBy'] ?? '',
-      timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      description: data['description'],
-      members: List<String>.from(data['members'] ?? []),
-      messageCount: data['messageCount'] ?? 0,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      memberCount: data['memberCount'] ?? 1,
+      postCount: data['postCount'] ?? 0,
     );
   }
 
   /// Convert to Firestore document
   Map<String, dynamic> toFirestore() {
     return {
-      'title': title,
+      'forumName': forumName,
+      'forumDescription': forumDescription,
       'createdBy': createdBy,
-      'timestamp': Timestamp.fromDate(timestamp),
-      'description': description,
-      'members': members,
-      'messageCount': messageCount,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'memberCount': memberCount,
+      'postCount': postCount,
     };
   }
 
-  /// Check if user is member
-  bool isMember(String userId) {
-    return members.contains(userId);
-  }
-
-  int get memberCount => members.length;
-
   Forum copyWith({
-    String? title,
-    String? description,
-    List<String>? members,
-    int? messageCount,
+    String? forumName,
+    String? forumDescription,
+    int? memberCount,
+    int? postCount,
   }) {
     return Forum(
-      id: id,
-      title: title ?? this.title,
+      forumId: forumId,
+      forumName: forumName ?? this.forumName,
+      forumDescription: forumDescription ?? this.forumDescription,
       createdBy: createdBy,
-      timestamp: timestamp,
-      description: description ?? this.description,
-      members: members ?? this.members,
-      messageCount: messageCount ?? this.messageCount,
+      createdAt: createdAt,
+      memberCount: memberCount ?? this.memberCount,
+      postCount: postCount ?? this.postCount,
     );
   }
 }
