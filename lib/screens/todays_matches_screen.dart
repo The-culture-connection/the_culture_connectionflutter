@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../models/user_profile.dart';
-import '../services/universal_connection_service.dart';
-import '../services/optimized_data_service.dart';
-import '../services/performance_service.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import '../models/match.dart';
+import '../services/rsvp_service.dart';
 
-/// TodaysMatchesScreen - Equivalent to iOS TodaysMatchesView.swift
+/// Today's Matches Screen - Equivalent to iOS TodaysMatchesView.swift
 class TodaysMatchesScreen extends StatefulWidget {
   const TodaysMatchesScreen({super.key});
 
@@ -16,575 +14,570 @@ class TodaysMatchesScreen extends StatefulWidget {
 }
 
 class _TodaysMatchesScreenState extends State<TodaysMatchesScreen> {
-  List<UserProfile> _oldMatches = [];
-  List<UserProfile> _newMatches = [];
+  UserMatch? _currentUser;
+  List<Match> _matches = [];
   bool _isLoading = true;
   String? _errorMessage;
-  String _selectedTab = 'all'; // 'all', 'old', 'new'
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final RSVPService _rsvpService = RSVPService();
 
   @override
   void initState() {
     super.initState();
-    _loadTodaysMatches();
+    _loadUserMatches();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFFFF7E00)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Today\'s Matches',
-          style: TextStyle(
-            color: Color(0xFFFF7E00),
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(50),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildTabButton('all', 'All Matches'),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildTabButton('old', 'Traditional'),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildTabButton('new', 'Skill-Based'),
-                ),
-              ],
+      backgroundColor: const Color(0xFF1D1D1E),
+      body: Stack(
+        children: [
+          // Background image
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/EventImage.png'),
+                fit: BoxFit.cover,
+              ),
             ),
           ),
-        ),
-      ),
-      body: _buildBody(),
-    );
-  }
-
-  Widget _buildTabButton(String tab, String label) {
-    final isSelected = _selectedTab == tab;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedTab = tab),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFF7E00) : Colors.grey.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.grey,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 12,
+          
+          // Dark overlay
+          Container(
+            color: Colors.black.withOpacity(0.4),
           ),
-          textAlign: TextAlign.center,
-        ),
+          
+          // Content
+          SafeArea(
+            child: _buildContent(),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildContent() {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFFFF7E00),
-        ),
-      );
+      return _buildLoadingState();
+    } else if (_errorMessage != null) {
+      return _buildErrorState();
+    } else if (_matches.isEmpty) {
+      return _buildEmptyState();
+    } else {
+      return _buildMatchesList();
     }
+  }
 
-    if (_errorMessage != null) {
-      return Center(
+  Widget _buildLoadingState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF7E00)),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            "Loading today's matches...",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontFamily: 'Inter-VariableFont_slnt,wght',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
               Icons.error_outline,
-              color: Colors.red,
-              size: 64,
+              size: 50,
+              color: Color(0xFFFF7E00),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+            Text(
+              "Error Loading Matches",
+              style: TextStyle(
+                fontFamily: 'Matches-StrikeRough',
+                fontSize: 24,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
             Text(
               _errorMessage!,
-              style: const TextStyle(
-                color: Colors.red,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
                 fontSize: 16,
+                fontFamily: 'Inter-VariableFont_slnt,wght',
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _loadTodaysMatches,
-              child: const Text('Retry'),
+              onPressed: _loadUserMatches,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF7E00),
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Retry',
+                style: TextStyle(
+                  fontFamily: 'Matches-StrikeRough',
+                  fontSize: 18,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    final currentMatches = _getCurrentMatches();
-    
-    if (currentMatches.isEmpty) {
-      return Center(
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
-              Icons.favorite_outline,
-              color: Colors.grey,
-              size: 64,
+              Icons.people_outline,
+              size: 50,
+              color: Color(0xFFFF7E00),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Text(
-              _getEmptyMessage(),
-              style: const TextStyle(
-                color: Colors.grey,
+              "No Matches Found",
+              style: TextStyle(
+                fontFamily: 'Matches-StrikeRough',
+                fontSize: 24,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "Fill out your profile more completely to view matches",
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
                 fontSize: 16,
+                fontFamily: 'Inter-VariableFont_slnt,wght',
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Check back later for new matches!',
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 14,
-              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: () async => _loadTodaysMatches(),
-      color: const Color(0xFFFF7E00),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: currentMatches.length,
-        itemBuilder: (context, index) {
-          return _buildMatchCard(currentMatches[index]);
-        },
       ),
     );
   }
 
-  List<UserProfile> _getCurrentMatches() {
-    switch (_selectedTab) {
-      case 'old':
-        return _oldMatches;
-      case 'new':
-        return _newMatches;
-      case 'all':
-      default:
-        return [..._oldMatches, ..._newMatches];
-    }
-  }
-
-  String _getEmptyMessage() {
-    switch (_selectedTab) {
-      case 'old':
-        return 'No traditional matches found';
-      case 'new':
-        return 'No skill-based matches found';
-      case 'all':
-      default:
-        return 'No matches found today';
-    }
-  }
-
-  Widget _buildMatchCard(UserProfile match) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      color: const Color(0xFF2A2A2A),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Profile Photo and Name
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: const Color(0xFFFF7E00).withOpacity(0.1),
-                  child: match.photoURL.isNotEmpty
-                      ? ClipOval(
-                          child: CachedNetworkImage(
-                            imageUrl: match.photoURL,
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => const CircularProgressIndicator(
-                              color: Color(0xFFFF7E00),
-                            ),
-                            errorWidget: (context, url, error) => Text(
-                              match.initials,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFFF7E00),
-                              ),
-                            ),
-                          ),
-                        )
-                      : Text(
-                          match.initials,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFFF7E00),
-                          ),
-                        ),
-                ),
-                
-                const SizedBox(width: 16),
-                
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        match.fullname,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+  Widget _buildMatchesList() {
+    return Column(
+      children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Back button and Logo row
+              Row(
+                children: [
+                  // Back button
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(
+                      Icons.arrow_back_ios,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  
+                  // Logo
+                  Image.asset(
+                    'assets/CC_PrimaryLogo_SilverPurple.png',
+                    height: 60,
+                    width: 120,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 15),
+              
+              // Title
+              Text(
+                "Your Matches",
+                style: TextStyle(
+                  fontFamily: 'Matches-StrikeRough',
+                  fontSize: 28,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              // User greeting
+              if (_currentUser != null)
+                Text(
+                  "Hello, ${_currentUser!.userName}",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.8),
+                    fontFamily: 'Inter-VariableFont_slnt,wght',
+                  ),
+                ),
+            ],
+          ),
+        ),
+        
+        // Matches List
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: _matches.length,
+            itemBuilder: (context, index) {
+              final match = _matches[index];
+              return _buildMatchCard(match, index + 1);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMatchCard(Match match, int rank) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          "#$rank",
+                          style: TextStyle(
+                            fontFamily: 'Matches-StrikeRough',
+                            fontSize: 16,
+                            color: const Color(0xFFFF7E00),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            match.matchName,
+                            style: TextStyle(
+                              fontFamily: 'Matches-StrikeRough',
+                              fontSize: 20,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (match.industry != null) ...[
                       const SizedBox(height: 4),
                       Text(
-                        'Age: ${match.age}',
-                        style: const TextStyle(
+                        match.industry!,
+                        style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey,
+                          color: Colors.white.withOpacity(0.7),
+                          fontFamily: 'Inter-VariableFont_slnt,wght',
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-                
-                // Match indicator
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'MATCH',
+              ),
+              
+              // Compatibility Score
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    "Compatibility",
                     style: TextStyle(
                       fontSize: 12,
+                      color: Colors.white.withOpacity(0.6),
+                      fontFamily: 'Inter-VariableFont_slnt,wght',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "${(match.score * 100).toInt()}%",
+                    style: TextStyle(
+                      fontFamily: 'Matches-StrikeRough',
+                      fontSize: 18,
+                      color: const Color(0xFFFF7E00),
                       fontWeight: FontWeight.bold,
-                      color: Colors.green,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Why this match
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
             ),
-            
-            const SizedBox(height: 16),
-            
-            // Bio
-            if (match.bio.isNotEmpty) ...[
-              Text(
-                match.bio,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.white,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 16),
-            ],
-            
-            // Job Title and Industry
-            if (match.jobTitle.isNotEmpty) ...[
-              Text(
-                match.jobTitle,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFFF7E00),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-            
-            if (match.industry.isNotEmpty) ...[
-              Text(
-                match.industry,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            
-            // Skills
-            if (match.skills.isNotEmpty) ...[
-              const Text(
-                'Skills:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                match.skills,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 16),
-            ],
-            
-            // Action Buttons
-            Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _handleViewProfile(match),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFFF7E00),
-                      side: const BorderSide(color: Color(0xFFFF7E00)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('View Profile'),
+                Text(
+                  "Why this match:",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.8),
+                    fontFamily: 'Inter-VariableFont_slnt,wght',
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                
-                const SizedBox(width: 16),
-                
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _handleConnect(match),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF7E00),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text('Connect'),
+                const SizedBox(height: 4),
+                Text(
+                  match.why,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                    fontFamily: 'Inter-VariableFont_slnt,wght',
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Action Buttons
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _handleConnectAction(match),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF7E00),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'CONNECT',
+                    style: TextStyle(
+                      fontFamily: 'Matches-StrikeRough',
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => _handlePassAction(match),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFFF7E00)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'PASS',
+                    style: TextStyle(
+                      fontFamily: 'Matches-StrikeRough',
+                      fontSize: 16,
+                      color: const Color(0xFFFF7E00),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  void _loadTodaysMatches() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
+  Future<void> _loadUserMatches() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-      final currentUser = _auth.currentUser;
-      if (currentUser == null) {
+    try {
+      final currentUserId = _auth.currentUser?.uid;
+      if (currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      print('🔍 Fetching matches for current user: $currentUserId');
+
+      // Try to fetch from UserMatches collection first (new advanced matching)
+      final userMatchDoc = await _db.collection("UserMatches").doc(currentUserId).get();
+      
+      if (userMatchDoc.exists) {
+        final userMatch = UserMatch.fromMap(userMatchDoc.data()!);
         setState(() {
-          _errorMessage = 'You must be logged in to view matches';
+          _currentUser = userMatch;
+          _matches = userMatch.matches;
           _isLoading = false;
         });
+        print('✅ Fetched ${userMatch.matches.length} matches from UserMatches');
         return;
       }
 
-      // Use optimized data service for both match types
-      final results = await Future.wait([
-        OptimizedDataService.getMatchesOptimized(
-          currentUserId: currentUser.uid,
-          isTraditional: true,
-        ),
-        OptimizedDataService.getMatchesOptimized(
-          currentUserId: currentUser.uid,
-          isTraditional: false,
-        ),
-      ]);
-
-      setState(() {
-        _oldMatches = results[0];
-        _newMatches = results[1];
-        _isLoading = false;
-      });
-
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load matches: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadOldMatches(String currentUserId) async {
-    try {
-      // Get traditional matches from Firestore
-      final matchesSnapshot = await _db
-          .collection('matches')
-          .where('user1Id', isEqualTo: currentUserId)
-          .get();
-
-      final matches2Snapshot = await _db
-          .collection('matches')
-          .where('user2Id', isEqualTo: currentUserId)
-          .get();
-
-      final allMatches = <String>[];
+      // Fallback to SkillMatches collection (old matching algorithm)
+      final skillMatchDoc = await _db.collection("SkillMatches").doc(currentUserId).get();
       
-      // Collect all match user IDs
-      for (final doc in matchesSnapshot.docs) {
-        final data = doc.data();
-        final user2Id = data['user2Id'] as String?;
-        if (user2Id != null) allMatches.add(user2Id);
-      }
-      
-      for (final doc in matches2Snapshot.docs) {
-        final data = doc.data();
-        final user1Id = data['user1Id'] as String?;
-        if (user1Id != null) allMatches.add(user1Id);
-      }
+      if (skillMatchDoc.exists) {
+        final data = skillMatchDoc.data()!;
+        final matchesData = data['matches'] as List<dynamic>? ?? [];
+        final matches = matchesData
+            .map((matchData) => Match.fromMap(matchData as Map<String, dynamic>))
+            .toList();
 
-      // Get user profiles for old matches
-      final profiles = <UserProfile>[];
-      for (final userId in allMatches) {
-        try {
-          final userDoc = await _db.collection('Profiles').doc(userId).get();
-          if (userDoc.exists) {
-            final profile = UserProfile.fromJson(userDoc.data()! as Map<String, dynamic>);
-            profiles.add(profile);
-          }
-        } catch (e) {
-          print('Error loading profile for $userId: $e');
-        }
-      }
+        final userMatch = UserMatch(
+          userId: currentUserId,
+          userName: data['fullName'] ?? 'Unknown User',
+          matches: matches,
+          runAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        );
 
-      _oldMatches = profiles;
-    } catch (e) {
-      print('Error loading old matches: $e');
-      _oldMatches = [];
-    }
-  }
-
-  Future<void> _loadNewMatches(String currentUserId) async {
-    try {
-      // Get skill-based matches from SkillMatches collection
-      final skillMatchesDoc = await _db
-          .collection('SkillMatches')
-          .doc(currentUserId)
-          .get();
-
-      if (!skillMatchesDoc.exists) {
-        _newMatches = [];
+        setState(() {
+          _currentUser = userMatch;
+          _matches = matches;
+          _isLoading = false;
+        });
+        print('✅ Fetched ${matches.length} matches from SkillMatches');
         return;
       }
 
-      final data = skillMatchesDoc.data()!;
-      final matches = data['matches'] as List<dynamic>? ?? [];
-      
-      final profiles = <UserProfile>[];
-      for (final match in matches) {
-        try {
-          final userId = match['userId'] as String?;
-          if (userId != null) {
-            final userDoc = await _db.collection('Profiles').doc(userId).get();
-            if (userDoc.exists) {
-              final profile = UserProfile.fromJson(userDoc.data()! as Map<String, dynamic>);
-              profiles.add(profile);
-            }
-          }
-        } catch (e) {
-          print('Error loading skill match profile: $e');
-        }
-      }
+      // No matches found
+      setState(() {
+        _matches = [];
+        _isLoading = false;
+      });
+      print('📭 No matches found for current user');
 
-      _newMatches = profiles;
     } catch (e) {
-      print('Error loading new matches: $e');
-      _newMatches = [];
+      print('❌ Error loading matches: $e');
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
     }
   }
 
-  void _handleViewProfile(UserProfile match) {
-    // TODO: Navigate to user profile detail screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Viewing profile of ${match.fullname}'),
-        backgroundColor: const Color(0xFFFF7E00),
-      ),
-    );
-  }
-
-  Future<void> _handleConnect(UserProfile match) async {
+  Future<void> _handleConnectAction(Match match) async {
     try {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFFFF7E00),
+      final result = await _rsvpService.sendConnectionRequest(userId: match.matchId);
+      
+      if (mounted) {
+        if (result['success'] == true) {
+          if (result['isMatch'] == true) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('🎉 It\'s a Match! You are now connected!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Connection request sent!'),
+                backgroundColor: Color(0xFFFF7E00),
+              ),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Connection failed: ${result['message'] ?? 'Unknown error'}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
           ),
-        ),
-      );
+        );
+      }
+    }
+  }
 
-      // Send connection request
-      final result = await UniversalConnectionService.sendConnectionRequest(
-        toUserId: match.id,
-        context: 'todays_matches',
-      );
-
-      // Close loading dialog
-      Navigator.of(context).pop();
-
-      // Show result
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.message),
-          backgroundColor: result.isMatch ? Colors.green : Colors.blue,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-    } catch (e) {
-      // Close loading dialog if still open
-      Navigator.of(context).pop();
+  Future<void> _handlePassAction(Match match) async {
+    try {
+      final currentUserId = _auth.currentUser!.uid;
+      await _db.collection('UserActions').doc(currentUserId).set({
+        'passedUsers': FieldValue.arrayUnion([match.matchId])
+      }, SetOptions(merge: true));
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User passed'),
+            backgroundColor: Colors.grey,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error recording pass: $e');
     }
   }
 }

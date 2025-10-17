@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
-import 'todays_matches_screen.dart';
+import '../todays_matches_screen.dart';
 import '../events/events_screen.dart';
 import '../newsfeed_screen.dart';
 import '../search/user_search_screen.dart';

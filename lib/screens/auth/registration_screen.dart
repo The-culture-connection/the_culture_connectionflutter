@@ -53,6 +53,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     'Looking to Hire',
     'Starting a business',
     'Looking to get hired',
+    'Networking',
     'Looking to invest in a start up',
   ];
 
@@ -164,123 +165,147 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   Future<void> _register() async {
     // Manual validation for required fields
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your name'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter your name'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
     
     if (_emailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your email'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter your email'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
     
     if (_passwordController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your password'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter your password'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
     
     if (_ageController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your age'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter your age'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
     
     final age = int.tryParse(_ageController.text.trim());
     if (age == null || age < 18 || age > 100) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid age (18-100)'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid age (18-100)'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
 
     if (_profileImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a profile photo'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a profile photo'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
 
     if (_selectedSkillsOffering.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one skill you can offer'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select at least one skill you can offer'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
 
     if (_selectedSkillsSeeking.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one skill you are seeking'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select at least one skill you are seeking'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
 
     if (_selectedLevel == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select your experience level'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select your experience level'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
 
     if (_selectedPurposes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one purpose'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select at least one purpose'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
 
     if (_selectedGender == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select your gender'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select your gender'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
 
     if (_cityController.text.isEmpty || _stateController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your city and state'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter your city and state'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
       return;
     }
 

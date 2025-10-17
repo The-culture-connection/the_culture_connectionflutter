@@ -81,9 +81,20 @@ export const runAdvancedMatching = onRequest({
     for (let i = 0; i < profiles.length; i++) {
       const user = profiles[i];
 
-      // Skip if user doesn't have required data
-      if (!user.skillsOffering || !user.skillsSeeking || !user.purposes) {
-        logger.info(`Skipping user ${user.id} - missing required data`);
+      // Debug: Log available fields for first few users
+      if (i < 3) {
+        logger.info(`User ${user.id} fields:`, Object.keys(user));
+        logger.info(`User ${user.id} Skills Offering:`,
+          user["Skills Offering"]);
+        logger.info(`User ${user.id} Skills Seeking:`,
+          user["Skills Seeking"]);
+      }
+
+      // Check for skills data in both new and old formats
+      const skillsOffering = user["Skills Offering"] || user["skillsOffering"];
+      const skillsSeeking = user["Skills Seeking"] || user["skillsSeeking"];
+      if (!skillsOffering || !skillsSeeking) {
+        logger.info(`Skipping user ${user.id} - missing skills data`);
         continue;
       }
 
@@ -155,32 +166,78 @@ export const runAdvancedMatching = onRequest({
       `sent ${notifications.filter((n) => n.sent).length} notifications`,
     );
 
+    // Helper function to remove undefined values from objects
+    const removeUndefinedValues = (obj: any): any => {
+      if (obj === null || obj === undefined) return null;
+      if (typeof obj !== "object") return obj;
+      if (Array.isArray(obj)) {
+        return obj.map(removeUndefinedValues).filter(
+          (item) => item !== undefined,
+        );
+      }
+      const cleaned: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== undefined) {
+          cleaned[key] = removeUndefinedValues(value);
+        }
+      }
+      return cleaned;
+    };
+
     // Save matches to Firestore
     try {
-      const batch = db.batch();
       const timestamp = admin.firestore.FieldValue.serverTimestamp();
 
-      for (const userMatch of matches) {
-        const matchDocRef = db.collection("SkillMatches").doc(userMatch.userId);
-        const userProfile = profiles.find((p) => p.id === userMatch.userId);
-        const matchData = {
-          userId: userMatch.userId,
-          fullName: userProfile?.["Full Name"] || "Unknown",
-          matches: userMatch.matches,
-          totalMatches: userMatch.matches.length,
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        };
+      logger.info(
+        "Preparing to save " + matches.length + " matches to " +
+        "SkillMatches collection",
+      );
 
-        batch.set(matchDocRef, matchData, {merge: true});
+      let savedCount = 0;
+      for (const userMatch of matches) {
+        try {
+          const matchDocRef = db.collection("SkillMatches")
+            .doc(userMatch.userId);
+          const userProfile = profiles.find((p) => p.id === userMatch.userId);
+
+          // Clean the matches data to remove undefined values
+          const cleanedMatches = removeUndefinedValues(userMatch.matches);
+          const matchData = {
+            userId: userMatch.userId,
+            fullName: userProfile?.["Full Name"] || "Unknown",
+            matches: cleanedMatches,
+            totalMatches: cleanedMatches.length,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          };
+
+          logger.info(
+            `Saving match for user ${userMatch.userId} directly to Firestore`,
+          );
+          await matchDocRef.set(matchData, {merge: true});
+          savedCount++;
+          logger.info(
+            `Successfully saved match for user ${userMatch.userId}`,
+          );
+        } catch (userError: any) {
+          logger.error(
+            `Error saving match for user ${userMatch.userId}:`,
+            userError,
+          );
+        }
       }
 
-      await batch.commit();
       logger.info(
-        `Saved ${matches.length} match records to SkillMatches collection`,
+        "Successfully saved " + savedCount + " out of " + matches.length +
+        " match records to SkillMatches collection",
       );
     } catch (firestoreError: any) {
       logger.error("Error saving matches to Firestore:", firestoreError);
+      logger.error("Firestore error details:", {
+        code: firestoreError.code,
+        message: firestoreError.message,
+        stack: firestoreError.stack,
+      });
       // Don't fail the function if Firestore save fails
     }
 
@@ -215,9 +272,8 @@ function findMatchesForUser(user: any, allProfiles: any[]): any[] {
     // Skip self
     if (otherUser.id === user.id) continue;
 
-    // Skip if other user doesn't have required data
-    if (!otherUser.skillsOffering || !otherUser.skillsSeeking ||
-        !otherUser.purposes) continue;
+    // Skip if other user doesn't have required data (new registration flow)
+    if (!otherUser["Skills Offering"] || !otherUser["Skills Seeking"]) continue;
 
     let matchScore = 0;
     const matchReasons = [];
@@ -229,21 +285,21 @@ function findMatchesForUser(user: any, allProfiles: any[]): any[] {
       matchReasons.push(...skillsScore.reasons);
     }
 
-    // 2. Purpose Matching (30% weight)
+    // 2. Purpose Matching (30% weight) - Optional for new registration
     const purposeScore = calculatePurposeMatch(user, otherUser);
     matchScore += purposeScore.score * 0.3;
     if (purposeScore.score > 0) {
       matchReasons.push(...purposeScore.reasons);
     }
 
-    // 3. Business Needs Matching (20% weight)
+    // 3. Business Needs Matching (20% weight) - Optional for new registration
     const businessScore = calculateBusinessMatch(user, otherUser);
     matchScore += businessScore.score * 0.2;
     if (businessScore.score > 0) {
       matchReasons.push(...businessScore.reasons);
     }
 
-    // 4. Experience Level Compatibility (10% weight)
+    // 4. Experience Level Compatibility (10% weight) - Optional
     const experienceScore = calculateExperienceMatch(user, otherUser);
     matchScore += experienceScore.score * 0.1;
     if (experienceScore.score > 0) {
@@ -257,12 +313,15 @@ function findMatchesForUser(user: any, allProfiles: any[]): any[] {
         name: otherUser["Full Name"] || "Unknown",
         score: Math.round(matchScore * 100) / 100,
         reasons: matchReasons,
-        skillsOffering: otherUser.skillsOffering,
-        skillsSeeking: otherUser.skillsSeeking,
-        purposes: otherUser.purposes,
-        businessNeeds: otherUser.businessNeeds || [],
-        experienceLevel: otherUser.experienceLevel,
-        location: otherUser.location,
+        skillsOffering: otherUser["Skills Offering"] ||
+          otherUser["skillsOffering"] || [],
+        skillsSeeking: otherUser["Skills Seeking"] ||
+          otherUser["skillsSeeking"] || [],
+        purposes: otherUser.purposes || otherUser["Purposes"] || [],
+        businessNeeds: otherUser.businessNeeds ||
+          otherUser["Business Needs"] || [],
+        experienceLevel: otherUser.experienceLevel ||
+          otherUser["Experience Level"],
       });
     }
   }
@@ -272,9 +331,9 @@ function findMatchesForUser(user: any, allProfiles: any[]): any[] {
 }
 
 /**
- * Calculate skills matching score
- * - User's skillsOffering should match other's skillsSeeking
- * - Prioritize subcategory matches, then main category matches
+ * Calculate skills matching score (updated for new registration flow)
+ * - User's "Skills Offering" should match other's "Skills Seeking"
+ * - Simple array-to-array matching with exact string comparison
  * @param {any} user - The user to calculate skills match for
  * @param {any} otherUser - The other user to match against
  * @return {{score: number, reasons: string[]}} Skills match score and reasons
@@ -286,45 +345,57 @@ function calculateSkillsMatch(user: any, otherUser: any): {
   let score = 0;
   const reasons = [];
 
-  const userOffering = user.skillsOffering;
-  const otherSeeking = otherUser.skillsSeeking;
+  const userOffering = user["Skills Offering"] ||
+    user["skillsOffering"] || [];
+  const otherSeeking = otherUser["Skills Seeking"] ||
+    otherUser["skillsSeeking"] || [];
 
-  if (!userOffering || !otherSeeking) return {score: 0, reasons: []};
+  // Ensure they are arrays
+  const userOfferingArray = Array.isArray(userOffering) ? userOffering : [];
+  const otherSeekingArray = Array.isArray(otherSeeking) ? otherSeeking : [];
 
-  // Check subcategory matches first (higher weight)
-  const userSubCategories = userOffering.subCategories || [];
-  const otherSeekingSubCategories = otherSeeking.subCategories || [];
+  if (userOfferingArray.length === 0 || otherSeekingArray.length === 0) {
+    return {score: 0, reasons: []};
+  }
 
-  for (const userSub of userSubCategories) {
-    if (otherSeekingSubCategories.includes(userSub)) {
-      score += 0.8; // High weight for exact subcategory match
-      reasons.push(`Your ${userSub} skills match their needs`);
+  // Check for exact matches between user's offering and other's seeking
+  for (const userSkill of userOfferingArray) {
+    if (otherSeekingArray.includes(userSkill)) {
+      score += 1.0; // Full weight for exact match
+      reasons.push(`Your ${userSkill} skills match their needs`);
     }
   }
 
-  // Check main category matches (lower weight)
-  const userMainCategories = userOffering.mainCategories || [];
-  const otherSeekingCategories = otherSeeking.categories || [];
+  // Also check reverse - other's offering matches user's seeking
+  const userSeeking = user["Skills Seeking"] ||
+    user["skillsSeeking"] || [];
+  const otherOffering = otherUser["Skills Offering"] ||
+    otherUser["skillsOffering"] || [];
 
-  for (const userMain of userMainCategories) {
-    if (otherSeekingCategories.includes(userMain)) {
-      score += 0.4; // Lower weight for main category match
-      reasons.push(`Your ${userMain} expertise aligns with their interests`);
+  // Ensure they are arrays
+  const userSeekingArray = Array.isArray(userSeeking) ? userSeeking : [];
+  const otherOfferingArray = Array.isArray(otherOffering) ? otherOffering : [];
+
+  for (const otherSkill of otherOfferingArray) {
+    if (userSeekingArray.includes(otherSkill)) {
+      score += 1.0; // Full weight for reverse match
+      reasons.push(`They offer ${otherSkill} which you're seeking`);
     }
   }
 
   // Normalize score to 0-1 range
-  const maxPossibleScore = Math.max(userSubCategories.length,
-    userMainCategories.length) * 0.8;
-  const normalizedScore = maxPossibleScore > 0 ?
-    Math.min(score / maxPossibleScore, 1) : 0;
+  const maxPossibleMatches = Math.max(
+    userOfferingArray.length, userSeekingArray.length);
+  const normalizedScore = maxPossibleMatches > 0 ?
+    Math.min(score / maxPossibleMatches, 1) : 0;
 
   return {score: normalizedScore, reasons};
 }
 
 /**
- * Calculate purpose matching score
- * - Look for complementary purposes
+ * Calculate purpose matching score (updated for new registration flow)
+ * - Look for complementary purposes (if available)
+ * - Returns neutral score if no purposes data
  * @param {any} user - The user to calculate purpose match for
  * @param {any} otherUser - The other user to match against
  * @return {{score: number, reasons: string[]}} Purpose match score and reasons
@@ -336,16 +407,19 @@ function calculatePurposeMatch(user: any, otherUser: any): {
   let score = 0;
   const reasons = [];
 
-  const userPurposes = user.purposes || [];
-  const otherPurposes = otherUser.purposes || [];
+  const userPurposes = user.purposes || user["Purposes"] || [];
+  const otherPurposes = otherUser.purposes || otherUser["Purposes"] || [];
+
+  // If no purposes data, return neutral score
+  if (userPurposes.length === 0 && otherPurposes.length === 0) {
+    return {score: 0.5, reasons: ["No purpose data to match"]};
+  }
 
   // Define complementary purpose pairs
   const complementaryPairs = [
-    ["Looking to hire candidates", "Looking to get hired"],
-    ["Looking for a mentor", "Looking for a mentee"],
-    ["Starting a business", "Wants to invest in a business"],
+    ["Looking to Hire", "Looking to get hired"],
+    ["Starting a business", "Looking to invest in a start up"],
     ["Networking", "Networking"], // Same purpose is also good
-    ["Looking for a mentee", "Looking for a mentor"],
   ];
 
   for (const [userPurpose, otherPurpose] of complementaryPairs) {
@@ -365,14 +439,15 @@ function calculatePurposeMatch(user: any, otherUser: any): {
   }
 
   // Normalize to 0-1 range
-  // Max score of 2, normalize to 1
   const normalizedScore = Math.min(score / 2, 1);
 
   return {score: normalizedScore, reasons};
 }
 
 /**
- * Calculate business needs matching score
+ * Calculate business needs matching score (updated for new registration flow)
+ * - Look for complementary business needs (if available)
+ * - Returns neutral score if no business needs data
  * @param {any} user - The user to calculate business match for
  * @param {any} otherUser - The other user to match against
  * @return {{score: number, reasons: string[]}} Business match score and reasons
@@ -384,10 +459,12 @@ function calculateBusinessMatch(user: any, otherUser: any): {
   let score = 0;
   const reasons = [];
 
-  const userBusinessNeeds = user.businessNeeds || [];
-  const otherBusinessNeeds = otherUser.businessNeeds || [];
+  const userBusinessNeeds = user.businessNeeds ||
+    user["Business Needs"] || [];
+  const otherBusinessNeeds = otherUser.businessNeeds ||
+    otherUser["Business Needs"] || [];
 
-  // If neither user is starting a business, this doesn't apply
+  // If no business needs data, return neutral score
   if (userBusinessNeeds.length === 0 && otherBusinessNeeds.length === 0) {
     return {score: 0.5, reasons: ["No business needs to match"]};
   }
@@ -401,7 +478,8 @@ function calculateBusinessMatch(user: any, otherUser: any): {
 
   for (const [userNeed, otherPurpose] of complementaryBusinessNeeds) {
     if (userBusinessNeeds.includes(userNeed) &&
-        otherUser.purposes?.includes(otherPurpose)) {
+        (otherUser.purposes?.includes(otherPurpose) ||
+         otherUser["Purposes"]?.includes(otherPurpose))) {
       score += 1.0;
       reasons.push(
         `Your ${userNeed} need matches their ${otherPurpose} purpose`,
@@ -422,7 +500,9 @@ function calculateBusinessMatch(user: any, otherUser: any): {
 }
 
 /**
- * Calculate experience level compatibility
+ * Calculate experience level compatibility (updated for new registration flow)
+ * - Look for compatible experience levels (if available)
+ * - Returns neutral score if no experience level data
  * @param {any} user - The user to calculate experience match for
  * @param {any} otherUser - The other user to match against
  * @return {{score: number, reasons: string[]}} Experience match score
@@ -431,8 +511,8 @@ function calculateExperienceMatch(user: any, otherUser: any): {
   score: number;
   reasons: string[];
 } {
-  const userLevel = user.experienceLevel;
-  const otherLevel = otherUser.experienceLevel;
+  const userLevel = user.experienceLevel || user["Experience Level"];
+  const otherLevel = otherUser.experienceLevel || otherUser["Experience Level"];
 
   if (!userLevel || !otherLevel) {
     return {score: 0.5, reasons: ["Experience level not specified"]};

@@ -9,7 +9,7 @@ import '../screens/business/black_business_screen.dart';
 import '../screens/forums/forums_screen.dart';
 import '../screens/chat/chat_list_screen.dart';
 import '../screens/chat/chat_detail_screen.dart';
-import '../screens/connections/todays_matches_screen.dart';
+import '../screens/todays_matches_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/profile_preview_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
