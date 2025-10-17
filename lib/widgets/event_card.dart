@@ -183,8 +183,8 @@ class _EventCardState extends State<EventCard> {
                     const Icon(Icons.location_on, color: Colors.grey, size: 16),
                     const SizedBox(width: 8),
                     Expanded(
-                      child:                     Text(
-                      widget.event.displayLocation,
+                      child: Text(
+                        widget.event.displayLocation,
                         style: const TextStyle(
                           color: Colors.grey,
                           fontSize: 14,

@@ -12,6 +12,7 @@ import '../../services/storage_service.dart';
 import '../../services/firestore_service.dart';
 import '../../models/user_profile.dart';
 import '../../utils/validators.dart';
+import '../main_navigation_screen.dart';
 import 'login_screen.dart';
 
 class RegistrationScreen extends ConsumerStatefulWidget {
@@ -32,6 +33,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   final _passwordController = TextEditingController();
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
+  final _ageController = TextEditingController();
 
   // State
   File? _profileImage;
@@ -61,6 +63,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     _passwordController.dispose();
     _cityController.dispose();
     _stateController.dispose();
+    _ageController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -159,11 +162,52 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   }
 
   Future<void> _register() async {
-    // Validation
-    if (!_formKey.currentState!.validate()) {
+    // Manual validation for required fields
+    if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill in all required fields'),
+          content: Text('Please enter your name'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    
+    if (_emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your email'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    
+    if (_passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your password'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    
+    if (_ageController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your age'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    
+    final age = int.tryParse(_ageController.text.trim());
+    if (age == null || age < 18 || age > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid age (18-100)'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -269,7 +313,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         id: userId,
         userId: userId,
         fullName: _nameController.text.trim(),
-        age: 0, // Not collected in this flow
+        age: age,
         gender: _selectedGender!,
         experienceLevel: _selectedLevel!,
         skillsOffering: _selectedSkillsOffering.toList(),
@@ -295,8 +339,23 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         'profile_created',
       );
 
-      // Success! AuthWrapper will automatically navigate to MainNavigationScreen
-      // because the user is now authenticated
+      // Success! Navigate directly to main screen
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile created successfully!'),
+            backgroundColor: AppColors.electricOrange,
+          ),
+        );
+        
+        // Navigate to main screen
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const MainNavigationScreen(),
+          ),
+          (route) => false,
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -614,6 +673,25 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                   setState(() => _obscurePassword = !_obscurePassword);
                 },
               ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Age
+            _buildTextField(
+              controller: _ageController,
+              label: 'Age',
+              icon: Icons.cake,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter your age';
+                }
+                final age = int.tryParse(value);
+                if (age == null || age < 18 || age > 100) {
+                  return 'Please enter a valid age (18-100)';
+                }
+                return null;
+              },
             ),
           ],
         ),

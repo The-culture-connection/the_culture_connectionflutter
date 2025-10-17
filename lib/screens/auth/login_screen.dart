@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../constants/app_colors.dart';
 import '../../services/auth_service.dart';
 import '../../utils/validators.dart';
+import '../main_navigation_screen.dart';
 import 'registration_screen.dart';
 import 'password_reset_screen.dart';
 
@@ -33,16 +35,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
+      print('🔐 Starting sign in process...');
       final authService = AuthService();
       await authService.signInWithEmail(
         _emailController.text.trim(),
         _passwordController.text,
       );
       
+      print('✅ Sign in successful, checking auth state...');
+      
       if (mounted) {
-        // Navigation handled by auth state listener
+        // Wait a moment for auth state to update
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // Check if user is authenticated
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          print('👤 User authenticated: ${user.email}');
+          // Navigate directly to main screen as fallback
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+            (route) => false,
+          );
+        } else {
+          print('⚠️ User not authenticated after sign in');
+        }
       }
     } catch (e) {
+      print('❌ Sign in error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -62,9 +82,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
+      print('🔐 Starting Google sign in process...');
       final authService = AuthService();
       await authService.signInWithGoogle();
+      
+      print('✅ Google sign in successful, checking auth state...');
+      
+      if (mounted) {
+        // Wait a moment for auth state to update
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // Check if user is authenticated
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          print('👤 User authenticated: ${user.email}');
+          // Navigate directly to main screen as fallback
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+            (route) => false,
+          );
+        } else {
+          print('⚠️ User not authenticated after Google sign in');
+        }
+      }
     } catch (e) {
+      print('❌ Google sign in error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

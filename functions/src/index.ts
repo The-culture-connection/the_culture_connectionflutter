@@ -8,7 +8,7 @@
  */
 
 import {setGlobalOptions} from "firebase-functions";
-import {onRequest} from "firebase-functions/https";
+import {onRequest, onCall} from "firebase-functions/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 
@@ -475,3 +475,281 @@ function calculateExperienceMatch(user: any, otherUser: any): {
     reasons: ["Experience levels may not be ideal match"],
   };
 }
+
+// ======= NOTIFICATION FUNCTIONS =======
+/**
+ * Sends push notification for new connection requests
+ * @param {string} fromUserId - ID of the user sending the request
+ * @param {string} toUserId - ID of the user receiving the request
+ */
+async function notifyOnNewConnectionRequest(
+  fromUserId: string,
+  toUserId: string,
+) {
+  try {
+    const senderProfile = await db.collection("Profiles")
+      .doc(fromUserId).get();
+    if (!senderProfile.exists) {
+      logger.warn(`Sender profile not found for user: ${fromUserId}`);
+      return;
+    }
+
+    const senderData = senderProfile.data();
+    const senderName = senderData?.["Full Name"] || "Someone";
+
+    const recipientProfile = await db.collection("Profiles")
+      .doc(toUserId).get();
+    if (!recipientProfile.exists) {
+      logger.warn(`Recipient profile not found for user: ${toUserId}`);
+      return;
+    }
+
+    const recipientData = recipientProfile.data();
+    const fcmToken = recipientData?.["fcmToken"];
+
+    if (!fcmToken) {
+      logger.warn(`No FCM token found for user: ${toUserId}`);
+      return;
+    }
+
+    const message = {
+      token: fcmToken,
+      notification: {
+        title: "New Connection Request! 🔗",
+        body: `${senderName} wants to connect with you!`,
+      },
+      data: {
+        type: "connection_request",
+        fromUserId: fromUserId,
+        toUserId: toUserId,
+        senderName: senderName,
+      },
+      android: {
+        notification: {
+          icon: "ic_notification",
+          color: "#FF7E00",
+          sound: "default",
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: "default",
+            badge: 1,
+          },
+        },
+      },
+    };
+
+    const response = await admin.messaging().send(message);
+    logger.info(
+      `Connection request notification sent successfully: ${response}`,
+    );
+  } catch (error) {
+    logger.error("Error sending connection request notification:", error);
+  }
+}
+
+/**
+ * Sends push notification for new matches
+ * @param {string} user1Id - ID of the first user in the match
+ * @param {string} user2Id - ID of the second user in the match
+ */
+async function notifyOnNewMatch(user1Id: string, user2Id: string) {
+  try {
+    const [user1Profile, user2Profile] = await Promise.all([
+      db.collection("Profiles").doc(user1Id).get(),
+      db.collection("Profiles").doc(user2Id).get(),
+    ]);
+
+    const user1Data = user1Profile.data();
+    const user2Data = user2Profile.data();
+    const user1Name = user1Data?.["Full Name"] || "Someone";
+    const user2Name = user2Data?.["Full Name"] || "Someone";
+    const user1FcmToken = user1Data?.["fcmToken"];
+    const user2FcmToken = user2Data?.["fcmToken"];
+
+    if (user2FcmToken) {
+      const message1 = {
+        token: user2FcmToken,
+        notification: {
+          title: "🎉 It's a Match!",
+          body: `You and ${user1Name} are now connected!`,
+        },
+        data: {
+          type: "match",
+          user1Id: user1Id,
+          user2Id: user2Id,
+          matchName: user1Name,
+        },
+        android: {
+          notification: {
+            icon: "ic_notification",
+            color: "#FF7E00",
+            sound: "default",
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: "default",
+              badge: 1,
+            },
+          },
+        },
+      };
+
+      await admin.messaging().send(message1);
+      logger.info(`Match notification sent to user1: ${user1Id}`);
+    }
+
+    if (user1FcmToken) {
+      const message2 = {
+        token: user1FcmToken,
+        notification: {
+          title: "🎉 It's a Match!",
+          body: `You and ${user2Name} are now connected!`,
+        },
+        data: {
+          type: "match",
+          user1Id: user1Id,
+          user2Id: user2Id,
+          matchName: user2Name,
+        },
+        android: {
+          notification: {
+            icon: "ic_notification",
+            color: "#FF7E00",
+            sound: "default",
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: "default",
+              badge: 1,
+            },
+          },
+        },
+      };
+
+      await admin.messaging().send(message2);
+      logger.info(`Match notification sent to user2: ${user2Id}`);
+    }
+  } catch (error) {
+    logger.error("Error sending match notification:", error);
+  }
+}
+
+// ======= USER CONNECTION FUNCTION =======
+/**
+ * Handles user connection logic when a user connects with another user
+ * - Records the connection request
+ * - Checks for mutual like
+ * - Creates match if mutual like exists
+ * - Creates chat room for matched users
+ */
+export const handleUserConnection = onCall(async (request) => {
+  try {
+    const {fromUserId, toUserId} = request.data;
+
+    if (!fromUserId || !toUserId) {
+      throw new Error("fromUserId and toUserId are required");
+    }
+
+    logger.info(
+      `Processing connection request from ${fromUserId} to ${toUserId}`,
+    );
+
+    // Step 1: Record the connection request
+    const connectData = {
+      fromUserId: fromUserId,
+      toUserId: toUserId,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    const connectRef = await db.collection("Connects").add(connectData);
+    logger.info(`Connection request recorded with ID: ${connectRef.id}`);
+
+    // Step 2: Check for mutual like
+    const mutualLikeQuery = await db.collection("Connects")
+      .where("fromUserId", "==", toUserId)
+      .where("toUserId", "==", fromUserId)
+      .get();
+
+    if (mutualLikeQuery.empty) {
+      logger.info(`No mutual like found between ${fromUserId} and ${toUserId}`);
+
+      // Send notification for new connection request
+      await notifyOnNewConnectionRequest(fromUserId, toUserId);
+
+      return {
+        success: true,
+        message: "Connection request sent",
+        isMatch: false,
+        connectId: connectRef.id,
+      };
+    }
+
+    logger.info(`Mutual like detected between ${fromUserId} and ${toUserId}`);
+
+    // Step 3: Create match and delete connection requests
+    const batch = db.batch();
+
+    // Create match document
+    const matchData = {
+      user1Id: fromUserId,
+      user2Id: toUserId,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    const matchRef = db.collection("Matches").doc();
+    batch.set(matchRef, matchData);
+
+    // Delete both connection requests
+    batch.delete(connectRef);
+    for (const doc of mutualLikeQuery.docs) {
+      batch.delete(doc.ref);
+    }
+
+    await batch.commit();
+    logger.info("Match created and connection requests deleted");
+
+    // Send match notification to both users
+    await notifyOnNewMatch(fromUserId, toUserId);
+
+    // Step 4: Create chat room
+    const participants = [fromUserId, toUserId].sort();
+
+    // Check if chat room already exists
+    const existingChatQuery = await db.collection("ChatRooms")
+      .where("participants", "==", participants)
+      .get();
+
+    if (existingChatQuery.empty) {
+      const chatRoomData = {
+        participants: participants,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastMessage: "",
+        lastMessageTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await db.collection("ChatRooms").add(chatRoomData);
+      logger.info(`Chat room created for ${fromUserId} and ${toUserId}`);
+    } else {
+      logger.info(
+        `Chat room already exists between ${fromUserId} and ${toUserId}`,
+      );
+    }
+
+    return {
+      success: true,
+      message: "Match created successfully!",
+      isMatch: true,
+      matchId: matchRef.id,
+    };
+  } catch (error) {
+    logger.error("Error in handleUserConnection:", error);
+    throw new Error(`Connection failed: ${error}`);
+  }
+});
+

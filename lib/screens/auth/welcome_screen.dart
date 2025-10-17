@@ -15,7 +15,7 @@ class WelcomeScreen extends StatelessWidget {
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/Tamearaimage-3.png'),
+                image: AssetImage('assets/Loginimage1-2.png'),
                 fit: BoxFit.cover,
               ),
             ),
@@ -43,30 +43,6 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   
-                  // Title
-                  const Text(
-                    'The Culture Connection',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.electricOrange,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  // Subtitle
-                  Text(
-                    'Connect. Grow. Thrive.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 18,
-                      color: Colors.white.withOpacity(0.9),
-                      letterSpacing: 1.2,
-                    ),
-                  ),
                   
                   const Spacer(),
                   

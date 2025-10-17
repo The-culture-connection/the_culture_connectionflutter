@@ -158,19 +158,55 @@ class _RSVPUserRowState extends State<RSVPUserRow> {
     try {
       if (_connectionStatus == ConnectionStatus.requestReceived) {
         // Accept the connection request
-        await _rsvpService.sendConnectionRequest(userId: widget.rsvp.userId);
+        final result = await _rsvpService.sendConnectionRequest(userId: widget.rsvp.userId);
         if (mounted) {
           setState(() {
             _connectionStatus = ConnectionStatus.connected;
           });
         }
+        
+        // Show success message
+        if (result['isMatch'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🎉 Match! You are now connected!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Connection request sent!'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       } else {
         // Send connection request
-        await _rsvpService.sendConnectionRequest(userId: widget.rsvp.userId);
+        final result = await _rsvpService.sendConnectionRequest(userId: widget.rsvp.userId);
         if (mounted) {
           setState(() {
             _connectionStatus = ConnectionStatus.requestSent;
           });
+        }
+        
+        // Show success message
+        if (result['isMatch'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🎉 Match! You are now connected!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Connection request sent!'),
+              backgroundColor: Colors.orange,
+            ),
+          );
         }
       }
     } catch (e) {

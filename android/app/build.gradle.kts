@@ -28,7 +28,7 @@ android {
         applicationId = "com.thecultureconnection.culture_connection"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21  // Required for flutter_local_notifications
+        minSdk = flutter.minSdkVersion  // Required for flutter_local_notifications
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

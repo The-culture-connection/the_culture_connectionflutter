@@ -221,7 +221,15 @@ class EventsService extends ChangeNotifier {
     
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      final events = _parseTicketmasterEvents(data);
+      final events = _parseTicketmasterEvents(data, searchKeyword: keyword);
+      
+      // Sort by relevance score for keyword searches
+      events.sort((a, b) {
+        final scoreA = a.searchRelevanceScore ?? 0.0;
+        final scoreB = b.searchRelevanceScore ?? 0.0;
+        return scoreB.compareTo(scoreA);
+      });
+      
       print('🔍 Ticketmaster API returned ${events.length} events for keyword \'$keyword\'');
       return events;
     } else {
@@ -230,7 +238,7 @@ class EventsService extends ChangeNotifier {
   }
 
   /// Parse Ticketmaster API response
-  List<Event> _parseTicketmasterEvents(Map<String, dynamic> data) {
+  List<Event> _parseTicketmasterEvents(Map<String, dynamic> data, {String? searchKeyword}) {
     final List<Event> events = [];
     
     if (data['events'] != null) {
@@ -242,14 +250,14 @@ class EventsService extends ChangeNotifier {
             id: eventData['id'] ?? '',
             title: eventData['title'] ?? 'Untitled Event',
             header: eventData['title'] ?? 'Untitled Event',
-            details: eventData['description'] ?? 'Ticketmaster Event',
+            details: _parseEventDescription(eventData),
             date: _parseEventDate(eventData['startsAt']),
             place: _parseEventLocation(eventData),
             url: eventData['url'],
-            category: 'Entertainment',
-            organizer: 'Ticketmaster',
+            category: _parseEventCategory(eventData),
+            organizer: _parseEventOrganizer(eventData),
             source: EventSource.ticketmaster,
-            searchRelevanceScore: _calculateRelevanceScore(eventData),
+            searchRelevanceScore: _calculateRelevanceScore(eventData, searchKeyword: searchKeyword),
           );
           
           events.add(event);
@@ -290,14 +298,118 @@ class EventsService extends ChangeNotifier {
     return 'Location TBA';
   }
 
+  /// Parse rich event description from Ticketmaster response
+  String _parseEventDescription(Map<String, dynamic> eventData) {
+    final description = eventData['description'];
+    if (description != null && description.toString().isNotEmpty) {
+      return description.toString();
+    }
+    
+    // Fallback: create description from available fields
+    final title = eventData['title'] ?? '';
+    final venue = eventData['venue'] ?? '';
+    final category = eventData['category'] ?? eventData['genre'] ?? '';
+    final segment = eventData['segment'] ?? '';
+    
+    final parts = <String>[];
+    if (title.isNotEmpty) parts.add(title);
+    if (venue.isNotEmpty) parts.add('at $venue');
+    if (category.isNotEmpty) parts.add('($category)');
+    if (segment.isNotEmpty && segment != category) parts.add('$segment event');
+    
+    return parts.isNotEmpty ? parts.join(' ') : 'Ticketmaster Event';
+  }
+
+  /// Parse event category from Ticketmaster response
+  String _parseEventCategory(Map<String, dynamic> eventData) {
+    // Try multiple category fields in order of preference
+    final category = eventData['category'];
+    if (category != null && category.toString().isNotEmpty) {
+      return category.toString();
+    }
+    
+    final genre = eventData['genre'];
+    if (genre != null && genre.toString().isNotEmpty) {
+      return genre.toString();
+    }
+    
+    final segment = eventData['segment'];
+    if (segment != null && segment.toString().isNotEmpty) {
+      return segment.toString();
+    }
+    
+    return 'Entertainment';
+  }
+
+  /// Parse event organizer from Ticketmaster response
+  String _parseEventOrganizer(Map<String, dynamic> eventData) {
+    final organizer = eventData['organizer'];
+    if (organizer != null && organizer.toString().isNotEmpty) {
+      return organizer.toString();
+    }
+    
+    final promoter = eventData['promoter'];
+    if (promoter != null && promoter.toString().isNotEmpty) {
+      return promoter.toString();
+    }
+    
+    return 'Ticketmaster';
+  }
+
   /// Calculate relevance score for search results
-  double _calculateRelevanceScore(Map<String, dynamic> eventData) {
-    // Simple relevance scoring based on title and description
+  double _calculateRelevanceScore(Map<String, dynamic> eventData, {String? searchKeyword}) {
+    // Enhanced relevance scoring using multiple fields
     final title = (eventData['title'] ?? '').toString().toLowerCase();
     final description = (eventData['description'] ?? '').toString().toLowerCase();
+    final venue = (eventData['venue'] ?? '').toString().toLowerCase();
+    final address = (eventData['address'] ?? '').toString().toLowerCase();
+    final category = (eventData['category'] ?? '').toString().toLowerCase();
+    final genre = (eventData['genre'] ?? '').toString().toLowerCase();
+    final subGenre = (eventData['subGenre'] ?? '').toString().toLowerCase();
+    final segment = (eventData['segment'] ?? '').toString().toLowerCase();
+    final subSegment = (eventData['subSegment'] ?? '').toString().toLowerCase();
+    final classification = (eventData['classification'] ?? '').toString().toLowerCase();
+    final organizer = (eventData['organizer'] ?? '').toString().toLowerCase();
+    final promoter = (eventData['promoter'] ?? '').toString().toLowerCase();
     
     // Base score
     double score = 1.0;
+    
+    // If we have a search keyword, calculate keyword relevance
+    if (searchKeyword != null && searchKeyword.isNotEmpty) {
+      final keyword = searchKeyword.toLowerCase();
+      final keywordWords = keyword.split(' ');
+      
+      // Title matches (highest weight)
+      for (final word in keywordWords) {
+        if (title.contains(word)) {
+          score += 2.0; // High weight for title matches
+        }
+        if (description.contains(word)) {
+          score += 1.5; // High weight for description matches
+        }
+        if (venue.contains(word)) {
+          score += 1.0; // Medium weight for venue matches
+        }
+        if (category.contains(word) || genre.contains(word)) {
+          score += 1.2; // Medium-high weight for category matches
+        }
+        if (organizer.contains(word) || promoter.contains(word)) {
+          score += 0.8; // Medium weight for organizer matches
+        }
+        if (segment.contains(word) || subSegment.contains(word)) {
+          score += 0.6; // Lower weight for segment matches
+        }
+      }
+      
+      // Exact phrase matching (bonus)
+      if (title.contains(keyword)) {
+        score += 1.0;
+      }
+      if (description.contains(keyword)) {
+        score += 0.8;
+      }
+    }
     
     // Boost score for events happening soon
     final date = _parseEventDate(eventData['startsAt']);

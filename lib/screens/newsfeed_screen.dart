@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/post.dart';
 import '../models/user_profile.dart';
-import '../services/universal_connection_service.dart';
-import '../services/performance_service.dart';
-import '../services/performance_monitor.dart';
+// import '../services/performance_service.dart';
+// import '../services/performance_monitor.dart';
 import 'user_profile_screen.dart';
+import 'user_post_view.dart';
+import 'post_swipe_view.dart';
 
 /// NewsFeedScreen - Equivalent to iOS PostView.swift
 class NewsFeedScreen extends StatefulWidget {
@@ -39,22 +41,7 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFFFF7E00)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'NewsFeed',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: const Color(0xFFFF7E00),
-                fontSize: 28,
-              ),
-        ),
-        centerTitle: true,
-      ),
+      backgroundColor: const Color(0xFF1D1D1E),
       body: Stack(
         children: [
           // Background image
@@ -76,9 +63,50 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
           SafeArea(
             child: Column(
               children: [
+                // Back Button
+                Padding(
+                  padding: const EdgeInsets.only(top: 20, left: 20),
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFFFF7E00),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.chevron_left,
+                              color: Color(0xFFFF7E00),
+                              size: 16,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Back',
+                              style: TextStyle(
+                                color: Color(0xFFFF7E00),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                
                 // Logo and Title Section
                 Container(
-                  padding: const EdgeInsets.only(top: 40),
+                  padding: const EdgeInsets.only(top: 20),
                   child: Column(
                     children: [
                       // Logo
@@ -138,6 +166,24 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
                         _selectedTypeFilter = selection.first;
                       });
                     },
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.resolveWith<Color?>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return const Color(0xFFFF7E00);
+                          }
+                          return const Color(0xFF2A2A2A);
+                        },
+                      ),
+                      foregroundColor: WidgetStateProperty.resolveWith<Color?>(
+                        (Set<WidgetState> states) {
+                          if (states.contains(WidgetState.selected)) {
+                            return Colors.white;
+                          }
+                          return Colors.white;
+                        },
+                      ),
+                    ),
                   ),
                 ),
                 
@@ -155,16 +201,44 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
                             ),
                           ),
                         )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: _filteredPosts.length,
-                          itemBuilder: (context, index) {
-                            final post = _filteredPosts[index];
-                            return _buildPostCard(post);
+                      : RefreshIndicator(
+                          onRefresh: () async {
+                            await _fetchPosts();
                           },
+                          color: const Color(0xFFFF7E00),
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: _filteredPosts.length,
+                            itemBuilder: (context, index) {
+                              final post = _filteredPosts[index];
+                              return _buildPostCard(post);
+                            },
+                          ),
                         ),
                 ),
               ],
+            ),
+          ),
+          
+          // Floating Action Button
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UserPostView(),
+                  ),
+                );
+              },
+              backgroundColor: const Color(0xFFFF7E00),
+              child: const Icon(
+                Icons.add,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
           ),
         ],
@@ -181,9 +255,7 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
   Widget _buildPostCard(Post post) {
     final isExpanded = _expandedPostId == post.id;
     
-    return GestureDetector(
-      onTap: () => _showUserProfile(post.userId),
-      child: Container(
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -255,15 +327,15 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
           if (post.postPhotoURL != null && post.postPhotoURL!.isNotEmpty) ...[
             const SizedBox(height: 12),
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               child: Image.network(
                 post.postPhotoURL!,
                 width: double.infinity,
-                height: 200,
+                height: 180,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
-                    height: 200,
+                    height: 180,
                     color: Colors.grey.withOpacity(0.3),
                     child: const Center(
                       child: Icon(
@@ -280,27 +352,6 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
           
           const SizedBox(height: 12),
           
-          // Connect Button
-          if (post.userId != _auth.currentUser?.uid) ...[
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _handleConnect(post.userId),
-                icon: const Icon(Icons.person_add, size: 18),
-                label: const Text('Connect'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF7E00),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          
           // Timestamp
           Text(
             _formatRelativeTime(post.timestamp),
@@ -309,17 +360,47 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
               color: Colors.grey,
             ),
           ),
+          
+          const SizedBox(height: 12),
+          
+          // VIEW PROFILE Button
+          if (post.userId != _auth.currentUser?.uid)
+            GestureDetector(
+              onTap: () => _navigateToPostSwipeView(post.userId),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFFFF7E00),
+                    width: 2,
+                  ),
+                ),
+                child: const Text(
+                  'VIEW PROFILE',
+                  style: TextStyle(
+                    fontFamily: 'Matches-StrikeRough',
+                    fontSize: 16,
+                    letterSpacing: 1.0,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
         ],
-      ),
       ),
     );
   }
 
-  void _fetchPosts() async {
+  Future<void> _fetchPosts() async {
     final currentUserId = _auth.currentUser?.uid;
     if (currentUserId == null) return;
 
-    await PerformanceMonitor.measure('fetch_posts', () async {
+    // await PerformanceMonitor.measure('fetch_posts', () async {
       // First get blocked users with caching
       final blockedUserIDs = await _getBlockedUsers(currentUserId);
 
@@ -332,19 +413,19 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
           _isFetched = true;
         });
       }
-    });
+    // });
   }
 
   Future<Set<String>> _getBlockedUsers(String userId) async {
-    return await PerformanceService.getCachedOrCompute(
-      'blocked_users_$userId',
-      () async {
+    // return await PerformanceService.getCachedOrCompute(
+    //   'blocked_users_$userId',
+    //   () async {
         final snapshot = await _db.collection("Profiles").doc(userId).get();
         final blockedUsers = snapshot.data()?["blockedUsers"] as Map<String, dynamic>? ?? {};
         return blockedUsers.keys.toSet();
-      },
-      cacheExpiry: const Duration(minutes: 5),
-    );
+    //   },
+    //   cacheExpiry: const Duration(minutes: 5),
+    // );
   }
 
   Future<List<Post>> _fetchPostsOptimized(Set<String> blockedUserIDs) async {
@@ -402,50 +483,17 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
     }
   }
 
-  /// Handle connection request from newsfeed
-  Future<void> _handleConnect(String userId) async {
-    try {
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFFFF7E00),
-          ),
+  /// Navigate to PostSwipeView (user profile view)
+  Future<void> _navigateToPostSwipeView(String userId) async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PostSwipeView(
+          userId: userId,
+          connectionRequestId: widget.connectionRequestId,
         ),
-      );
-
-      // Send connection request
-      final result = await UniversalConnectionService.sendConnectionRequest(
-        toUserId: userId,
-        context: 'newsfeed',
-      );
-
-      // Close loading dialog
-      Navigator.of(context).pop();
-
-      // Show result
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.message),
-          backgroundColor: result.isMatch ? Colors.green : Colors.blue,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-    } catch (e) {
-      // Close loading dialog if still open
-      Navigator.of(context).pop();
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
+      ),
+    );
   }
 
   /// Show user profile when post is tapped

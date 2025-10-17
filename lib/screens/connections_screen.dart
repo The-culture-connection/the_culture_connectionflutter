@@ -1,10 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/post.dart';
 import '../models/event.dart';
-import 'events_screen.dart';
-import 'newsfeed_screen.dart';
+import 'events/events_screen.dart';
+import 'newsfeed_screen.dart'; // NewsFeedScreen import
 import 'mentorship_connections_screen.dart';
 import 'networking_connections_screen.dart';
 import 'todays_matches_screen.dart';
@@ -36,250 +37,247 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Background image
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/Tamearaimage-2.png'),
-                fit: BoxFit.cover,
-              ),
-            ),
+      backgroundColor: const Color(0xFF1D1D1E),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/Tamearaimage-2.png'),
+            fit: BoxFit.cover,
           ),
-          
-          // Dark overlay for better text readability
-          Container(
-            color: Colors.black.withOpacity(0.4),
-          ),
-          
-          // Content
-          SafeArea(
+        ),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            color: Colors.black.withOpacity(0.3),
             child: Column(
               children: [
-                const Spacer(),
+                const SizedBox(height: 50),
                 
-                // Logo and Title Section
-                Column(
-                  children: [
-                    // Logo
-                    Image.asset(
-                      'assets/CC_PrimaryLogo_SilverPurple.png',
-                      height: 60,
-                      width: 220,
-                    ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Content Cards Section
-                    Column(
-                      children: [
-                        // Events and Newsfeed Cards
-                        Row(
-                          children: [
-                            // Events Card
-                            Expanded(
-                              child: _buildContentCard(
-                                icon: Icons.calendar_today,
-                                iconColor: const Color(0xFF1d1d1e),
-                                title: 'EVENTS',
-                                content: _nearestEvent != null
-                                    ? _nearestEvent!.title
-                                    : 'Nearest event',
-                                subtitle: _nearestEvent != null
-                                    ? _formatDate(_nearestEvent!.date)
-                                    : null,
-                                buttonText: 'SEE ALL',
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const EventsScreen()),
-                                  );
-                                },
-                              ),
-                            ),
-                            
-                            const SizedBox(width: 8),
-                            
-                            // Newsfeed Card
-                            Expanded(
-                              child: _buildContentCard(
-                                icon: Icons.article,
-                                iconColor: const Color(0xFFFF7E00),
-                                title: 'NEWSFEED',
-                                content: _latestPost != null
-                                    ? _latestPost!.title
-                                    : 'Latest post',
-                                subtitle: _latestPost != null
-                                    ? _formatRelativeTime(_latestPost!.timestamp)
-                                    : null,
-                                buttonText: 'OPEN',
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => NewsFeedScreen(
-                                        connectionRequestId: _connectionRequestId,
-                                      ),
-                        ),
-                      );
-                    },
+                // Logo Section
+                Image.asset(
+                  'assets/CC_PrimaryLogo_SilverPurple.png',
+                  height: 80,
+                  width: 280,
+                ),
+                
+                const SizedBox(height: 30),
+                
+                // Title Section
+                const Text(
+                  'CONNECTIONS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                    fontFamily: 'Matches-StrikeRough',
                   ),
                 ),
-              ],
-            ),
-                        
-                        const SizedBox(height: 16),
-                        
-                        // Action Buttons Section
-                        Column(
-                          children: [
-                            // FIND A MENTOR Button
-                            _buildActionButton(
-                              text: 'FIND A MENTOR',
+                
+                const SizedBox(height: 30),
+                  
+                // Content Cards Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      // Events and Newsfeed Cards - Square layout
+                      Row(
+                        children: [
+                          // Events Card
+                          Expanded(
+                            child: _buildSquareCard(
+                              icon: Icons.calendar_today,
+                              iconColor: const Color(0xFFFF7E00),
+                              title: 'EVENTS',
+                              content: _nearestEvent != null
+                                  ? _nearestEvent!.title
+                                  : 'Nearest event',
+                              subtitle: _nearestEvent != null
+                                  ? _formatDate(_nearestEvent!.date)
+                                  : null,
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const MentorshipConnectionsScreen(),
+                                    builder: (context) => const EventsScreen(),
                                   ),
                                 );
                               },
                             ),
-                            
-                            const SizedBox(height: 16),
-                            
-                            // GROW YOUR NETWORK Button
-                            _buildActionButton(
-                              text: 'GROW YOUR NETWORK',
+                          ),
+                          
+                          const SizedBox(width: 12),
+                          
+                          // Newsfeed Card
+                          Expanded(
+                            child: _buildSquareCard(
+                              icon: Icons.article,
+                              iconColor: const Color(0xFFFF7E00),
+                              title: 'NEWSFEED',
+                              content: _latestPost != null
+                                  ? _latestPost!.title
+                                  : 'Created this app',
+                              subtitle: _latestPost != null
+                                  ? _formatRelativeTime(_latestPost!.timestamp)
+                                  : '26 days, 16 hr',
                               onTap: () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const NetworkingConnectionsScreen(),
+                                    builder: (context) => NewsFeedScreen(
+                                      connectionRequestId: _connectionRequestId,
+                                    ),
                                   ),
                                 );
                               },
                             ),
-                            
-                            const SizedBox(height: 16),
-                            
-                            // TODAY'S MATCHES Button
-                            _buildActionButton(
-                              text: "TODAY'S MATCHES",
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const TodaysMatchesScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Action Buttons Section
+                      Column(
+                        children: [
+                          // FIND A MENTOR Button
+                          _buildActionButton(
+                            text: 'FIND A MENTOR',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const MentorshipConnectionsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // GROW YOUR NETWORK Button
+                          _buildActionButton(
+                            text: 'GROW YOUR NETWORK',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const NetworkingConnectionsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // TODAY'S MATCHES Button
+                          _buildActionButton(
+                            text: "TODAY'S MATCHES",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const TodaysMatchesScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
                 
                 const Spacer(),
               ],
-                      ),
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildContentCard({
+  Widget _buildSquareCard({
     required IconData icon,
     required Color iconColor,
     required String title,
     required String content,
     String? subtitle,
-    required String buttonText,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF2A2A2A),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  icon,
-                  color: iconColor,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-            Text(
-                  title,
-              style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                color: Colors.white,
+      child: AspectRatio(
+        aspectRatio: 1.0, // Makes it square
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2A2A2A),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFFFF7E00),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    icon,
+                    color: iconColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                        fontFamily: 'Matches-StrikeRough',
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: iconColor,
+                    size: 16,
+                  ),
+                ],
               ),
-            ),
-              ],
-            ),
-            
-            const SizedBox(height: 8),
-            
-            Text(
-              content,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            
-            if (subtitle != null) ...[
-              const SizedBox(height: 4),
+              
+              const SizedBox(height: 12),
+              
               Text(
-                subtitle,
+                content,
                 style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-            
-              const SizedBox(height: 8),
-            
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFFFF7E00),
-                  width: 2,
-                ),
-              ),
-              child: Text(
-                buttonText,
-                style: const TextStyle(
-                  fontFamily: 'Matches-StrikeRough',
-                  fontSize: 20,
-                  letterSpacing: 1.0,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                   color: Colors.white,
                 ),
-                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
+              
+              if (subtitle != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.withOpacity(0.8),
+                  ),
+                ),
+              ],
+              
+              const Spacer(),
+            ],
+          ),
         ),
       ),
     );
@@ -295,7 +293,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.8),
+          color: Colors.black.withOpacity(0.7),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: const Color(0xFFFF7E00),
@@ -305,10 +303,11 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
         child: Text(
           text,
           style: const TextStyle(
-            fontFamily: 'Matches-StrikeRough',
-            fontSize: 20,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
             letterSpacing: 1.0,
             color: Colors.white,
+            fontFamily: 'Matches-StrikeRough',
           ),
           textAlign: TextAlign.center,
         ),

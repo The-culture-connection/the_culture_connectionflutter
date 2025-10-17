@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
@@ -98,30 +99,37 @@ class RSVPService {
     }
   }
 
-  /// Send connection request to a user
-  Future<void> sendConnectionRequest({required String userId}) async {
+  /// Send connection request to a user using Firebase function
+  Future<Map<String, dynamic>> sendConnectionRequest({required String userId}) async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
       throw Exception('User not authenticated');
     }
 
     try {
-      final connectionRequestId = DateTime.now().millisecondsSinceEpoch.toString();
-      final likeData = {
+      print('🔗 Sending connection request to user: $userId');
+      
+      // Call Firebase function
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('handleUserConnection');
+      
+      final result = await callable.call({
         'fromUserId': currentUser.uid,
         'toUserId': userId,
-        'timestamp': FieldValue.serverTimestamp(),
-      };
+        'connectionRequestId': DateTime.now().millisecondsSinceEpoch.toString(),
+      });
 
-      await _db.collection('Connects').add(likeData);
-      print('✅ Connection request sent to user: $userId');
+      final data = result.data as Map<String, dynamic>;
+      
+      if (data['success'] == true) {
+        if (data['isMatch'] == true) {
+          print('🎉 Match created! You and the other user are now connected!');
+        } else {
+          print('✅ Connection request sent successfully');
+        }
+      }
 
-      // Check for mutual like
-      await _checkForMutualLike(
-        fromUserId: currentUser.uid,
-        toUserId: userId,
-        connectionRequestId: connectionRequestId,
-      );
+      return data;
     } catch (e) {
       print('❌ Connection request failed: $e');
       rethrow;

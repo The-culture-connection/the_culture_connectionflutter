@@ -6,7 +6,7 @@ import 'messaging_screen.dart';
 import 'discover_screen.dart';
 import 'edit_profile_screen.dart';
 import 'newsfeed_screen.dart';
-import 'events_screen.dart';
+import 'events/events_screen.dart';
 
 /// MainScreen - Equivalent to iOS MainTabView.swift
 /// Main tab view with bottom navigation

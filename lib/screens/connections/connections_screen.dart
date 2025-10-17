@@ -1,9 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import 'todays_matches_screen.dart';
 import '../events/events_screen.dart';
-import '../discover/discover_screen.dart';
+import '../newsfeed_screen.dart';
 import '../search/user_search_screen.dart';
 
 class ConnectionsScreen extends ConsumerStatefulWidget {
@@ -14,95 +15,153 @@ class ConnectionsScreen extends ConsumerStatefulWidget {
 }
 
 class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
+  final String _connectionRequestId = DateTime.now().millisecondsSinceEpoch.toString();
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1d1d1e),
-      appBar: AppBar(
-        title: const Text(
-          'CONNECTIONS',
-          style: TextStyle(
-            fontFamily: 'InterTight',
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-          ),
-        ),
-        backgroundColor: const Color(0xFF1d1d1e),
-        elevation: 0,
-      ),
+      backgroundColor: const Color(0xFF1D1D1E),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           image: DecorationImage(
-            image: const AssetImage('assets/Connectionsimage.png'),
+            image: AssetImage('assets/Tamearaimage-2.png'),
             fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.5),
-              BlendMode.darken,
-            ),
           ),
         ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            color: Colors.black.withOpacity(0.3),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // EVENTS Card (smaller, at top)
-                _buildSmallCard(
-                  title: 'EVENTS',
-                  icon: Icons.event,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const EventsScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 50),
                 
-                // NEWSFEED Card (smaller, with post preview style)
-                _buildSmallCard(
-                  title: 'NEWSFEED',
-                  subtitle: 'Created this app',
-                  icon: Icons.article,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const DiscoverScreen()),
-                    );
-                  },
+                // Logo Section
+                Image.asset(
+                  'assets/CC_PrimaryLogo_SilverPurple.png',
+                  height: 80,
+                  width: 280,
                 ),
-                const SizedBox(height: 24),
                 
-                // FIND A MENTOR (large button)
-                _buildLargeButton(
-                  title: 'FIND A MENTOR',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const UserSearchScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 30),
                 
-                // GROW YOUR NETWORK (large button)
-                _buildLargeButton(
-                  title: 'GROW YOUR NETWORK',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const UserSearchScreen()),
-                    );
-                  },
+                // Title Section
+                const Text(
+                  'CONNECTIONS',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                    fontFamily: 'Matches-StrikeRough',
+                  ),
                 ),
-                const SizedBox(height: 16),
                 
-                // TODAY'S MATCHES (large button)
-                _buildLargeButton(
-                  title: 'TODAY\'S MATCHES',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const TodaysMatchesScreen()),
-                    );
-                  },
+                const SizedBox(height: 30),
+                  
+                // Content Cards Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      // Events and Newsfeed Cards - Square layout
+                      Row(
+                        children: [
+                          // Events Card
+                          Expanded(
+                            child: _buildSquareCard(
+                              icon: Icons.calendar_today,
+                              iconColor: const Color(0xFFFF7E00),
+                              title: 'EVENTS',
+                              content: 'Nearest event',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const EventsScreen()),
+                                );
+                              },
+                            ),
+                          ),
+                          
+                          const SizedBox(width: 12),
+                          
+                          // Newsfeed Card
+                          Expanded(
+                            child: _buildSquareCard(
+                              icon: Icons.article,
+                              iconColor: const Color(0xFFFF7E00),
+                              title: 'NEWSFEED',
+                              content: 'Whats going on',
+                              subtitle: 'Recently',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => NewsFeedScreen(
+                                      connectionRequestId: _connectionRequestId,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Action Buttons Section
+                      Column(
+                        children: [
+                          // FIND A MENTOR Button
+                          _buildActionButton(
+                            text: 'FIND A MENTOR',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const UserSearchScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // GROW YOUR NETWORK Button
+                          _buildActionButton(
+                            text: 'GROW YOUR NETWORK',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const UserSearchScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // TODAY'S MATCHES Button
+                          _buildActionButton(
+                            text: "TODAY'S MATCHES",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const TodaysMatchesScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+                
+                const Spacer(),
               ],
             ),
           ),
@@ -111,97 +170,118 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
     );
   }
 
-  Widget _buildSmallCard({
-    required String title,
-    String? subtitle,
+  Widget _buildSquareCard({
     required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String content,
+    String? subtitle,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF2a2a2e).withOpacity(0.9),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.electricOrange.withOpacity(0.3),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: AppColors.electricOrange,
-              size: 28,
+      child: AspectRatio(
+        aspectRatio: 1.0, // Makes it square
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2A2A2A),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFFFF7E00),
+              width: 1.5,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: AppColors.electricOrange,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'InterTight',
-                      letterSpacing: 1.1,
-                    ),
+                  Icon(
+                    icon,
+                    color: iconColor,
+                    size: 20,
                   ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 13,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                        fontFamily: 'Matches-StrikeRough',
                       ),
                     ),
-                  ],
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: iconColor,
+                    size: 16,
+                  ),
                 ],
               ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: AppColors.electricOrange,
-              size: 16,
-            ),
-          ],
+              
+              const SizedBox(height: 12),
+              
+              Text(
+                content,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              
+              if (subtitle != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.withOpacity(0.8),
+                  ),
+                ),
+              ],
+              
+              const Spacer(),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildLargeButton({
-    required String title,
+  Widget _buildActionButton({
+    required String text,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.7),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppColors.electricOrange,
+            color: const Color(0xFFFF7E00),
             width: 2,
           ),
         ),
-        child: Center(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.electricOrange,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'InterTight',
-              letterSpacing: 1.5,
-            ),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.0,
+            color: Colors.white,
+            fontFamily: 'Matches-StrikeRough',
           ),
+          textAlign: TextAlign.center,
         ),
       ),
     );
