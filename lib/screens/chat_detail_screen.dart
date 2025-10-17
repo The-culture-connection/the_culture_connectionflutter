@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/chat_room.dart';
+import '../models/message.dart';
+import '../models/date_proposal.dart';
 import 'other_user_profile_screen.dart';
 
 class ChatDetailScreen extends StatefulWidget {
@@ -406,7 +408,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 id: doc.id,
                 senderId: data['senderId'] ?? '',
                 text: data['text'] ?? '',
-                timestamp: data['timestamp'] as Timestamp,
+                timestamp: (data['timestamp'] as Timestamp).toDate(),
               );
             }).toList();
             _isLoading = false;
@@ -436,13 +438,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           setState(() {
             _dateProposals = snapshot.docs.map((doc) {
               final data = doc.data();
+              final otherParticipantId = widget.chatRoom.participants
+                  .firstWhere((id) => id != _auth.currentUser?.uid);
               return DateProposal(
                 id: doc.id,
                 proposerId: data['proposerId'] ?? '',
+                receiverId: otherParticipantId,
                 details: data['details'] ?? '',
                 date: (data['date'] as Timestamp).toDate(),
                 place: data['place'] ?? '',
-                timestamp: data['timestamp'] as Timestamp,
+                timestamp: (data['timestamp'] as Timestamp).toDate(),
                 status: data['status'] ?? 'Pending',
               );
             }).toList();

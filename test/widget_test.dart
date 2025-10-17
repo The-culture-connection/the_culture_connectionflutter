@@ -11,14 +11,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:culture_connection/main.dart';
 
 void main() {
-<<<<<<< HEAD
-  testWidgets('Culture Connection app smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const CultureConnectionApp());
-
-    // Verify that the app loads without crashing
-    expect(find.byType(MaterialApp), findsOneWidget);
-=======
   testWidgets('App launches successfully', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     // Note: This test is simplified because the app requires Firebase initialization
@@ -30,6 +22,5 @@ void main() {
     // Example:
     // await tester.pumpWidget(const ProviderScope(child: CultureConnectionApp()));
     // expect(find.byType(LoginScreen), findsOneWidget);
->>>>>>> 48e870b02ee1b0c01e22f1fa0652b170ae47e07e
   });
 }

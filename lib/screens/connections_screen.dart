@@ -379,6 +379,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
             _nearestEvent = Event(
               id: doc.id,
               title: data["title"] as String? ?? '',
+              header: data["header"] as String? ?? data["title"] as String? ?? '',
               details: data["details"] as String? ?? '',
               date: (data["date"] as Timestamp?)?.toDate() ?? DateTime.now(),
               place: data["place"] as String? ?? '',

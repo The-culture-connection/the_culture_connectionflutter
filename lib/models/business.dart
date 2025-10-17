@@ -1,4 +1,5 @@
-<<<<<<< HEAD
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 /// Represents a business entity with all relevant information for the Culture Connection app.
 /// 
 /// This class contains all the necessary data about a business including contact information,
@@ -7,27 +8,33 @@
 class Business {
   /// Unique identifier for the business
   final String id;
+  final String businessId;
   
   /// Name of the business
   final String name;
+  final String businessName;
   
   /// Category or type of business (e.g., "Restaurant", "Beauty & Wellness")
   final String category;
+  final String businessCategory;
   
   /// Physical address of the business
   final String address;
+  final String? businessAddress;
   
   /// Operating hours of the business
   final String hours;
   
   /// Contact phone number
   final String phone;
+  final String? businessPhone;
   
   /// Budget level indicator (e.g., "$", "$$", "$$$")
   final String budget;
   
   /// Description of the business and its services
   final String description;
+  final String? businessDescription;
   
   /// Whether the business operates online only
   final bool isOnline;
@@ -43,6 +50,7 @@ class Business {
   
   /// Business website URL
   final String? website;
+  final String? businessWebsite;
   
   /// Distance from user's location in meters
   final double? distance;
@@ -55,6 +63,15 @@ class Business {
   
   /// Longitude coordinate of the business location
   final double? longitude;
+  
+  /// Owner user ID
+  final String? ownerUserId;
+  
+  /// Business email
+  final String? businessEmail;
+  
+  /// Creation timestamp
+  final DateTime? createdAt;
 
   /// Creates a new Business instance.
   /// 
@@ -63,35 +80,45 @@ class Business {
   /// All other parameters are optional and can be null.
   const Business({
     required this.id,
+    this.businessId = '',
     required this.name,
+    this.businessName = '',
     required this.category,
+    this.businessCategory = '',
     required this.address,
+    this.businessAddress,
     required this.hours,
     required this.phone,
+    this.businessPhone,
     required this.budget,
     required this.description,
+    this.businessDescription,
     required this.isOnline,
     this.rating,
     this.reviewCount,
     this.imageURL,
     this.website,
+    this.businessWebsite,
     this.distance,
     this.yelpURL,
     this.latitude,
     this.longitude,
+    this.ownerUserId,
+    this.businessEmail,
+    this.createdAt,
   });
 
   /// Returns a user-friendly display address, showing "No Address" if empty.
-  String get displayAddress => address.isEmpty ? "No Address" : address;
+  String get displayAddress => address.isNotEmpty ? address : (businessAddress ?? "No Address");
   
   /// Returns a user-friendly display hours, showing "No Hours" if empty.
-  String get displayHours => hours.isEmpty ? "No Hours" : hours;
+  String get displayHours => hours.isNotEmpty ? hours : "No Hours";
   
   /// Returns a user-friendly display phone number, showing "No Phone Number" if empty.
-  String get displayPhone => phone.isEmpty ? "No Phone Number" : phone;
+  String get displayPhone => phone.isNotEmpty ? phone : (businessPhone ?? "No Phone Number");
   
   /// Returns a user-friendly display description, showing "No Description" if empty.
-  String get displayDescription => description.isEmpty ? "No Description" : description;
+  String get displayDescription => description.isNotEmpty ? description : (businessDescription ?? "No Description");
 
   /// Returns the distance converted from meters to miles for display.
   /// Returns null if distance is not available.
@@ -108,23 +135,71 @@ class Business {
   /// null coalescing operators to provide default values.
   factory Business.fromJson(Map<String, dynamic> json) {
     return Business(
-      id: json['id'] ?? '',
-      name: json['name'] ?? '',
-      category: json['category'] ?? '',
-      address: json['address'] ?? '',
+      id: json['id'] ?? json['businessId'] ?? '',
+      businessId: json['businessId'] ?? json['id'] ?? '',
+      name: json['name'] ?? json['businessName'] ?? '',
+      businessName: json['businessName'] ?? json['name'] ?? '',
+      category: json['category'] ?? json['businessCategory'] ?? '',
+      businessCategory: json['businessCategory'] ?? json['category'] ?? '',
+      address: json['address'] ?? json['businessAddress'] ?? '',
+      businessAddress: json['businessAddress'] ?? json['address'],
       hours: json['hours'] ?? '',
-      phone: json['phone'] ?? '',
+      phone: json['phone'] ?? json['businessPhone'] ?? '',
+      businessPhone: json['businessPhone'] ?? json['phone'],
       budget: json['budget'] ?? '',
-      description: json['description'] ?? '',
+      description: json['description'] ?? json['businessDescription'] ?? '',
+      businessDescription: json['businessDescription'] ?? json['description'],
       isOnline: json['isOnline'] ?? false,
       rating: json['rating']?.toDouble(),
       reviewCount: json['reviewCount'],
       imageURL: json['imageURL'],
-      website: json['website'],
+      website: json['website'] ?? json['businessWebsite'],
+      businessWebsite: json['businessWebsite'] ?? json['website'],
       distance: json['distance']?.toDouble(),
       yelpURL: json['yelpURL'],
       latitude: json['latitude']?.toDouble(),
       longitude: json['longitude']?.toDouble(),
+      ownerUserId: json['ownerUserId'],
+      businessEmail: json['businessEmail'],
+      createdAt: json['createdAt'] is Timestamp 
+          ? (json['createdAt'] as Timestamp).toDate()
+          : json['createdAt'] != null 
+              ? DateTime.parse(json['createdAt'])
+              : null,
+    );
+  }
+
+  /// Create from Firestore document
+  factory Business.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Business(
+      id: doc.id,
+      businessId: doc.id,
+      name: data['name'] ?? data['businessName'] ?? '',
+      businessName: data['businessName'] ?? data['name'] ?? '',
+      category: data['category'] ?? data['businessCategory'] ?? '',
+      businessCategory: data['businessCategory'] ?? data['category'] ?? '',
+      address: data['address'] ?? data['businessAddress'] ?? '',
+      businessAddress: data['businessAddress'] ?? data['address'],
+      hours: data['hours'] ?? '',
+      phone: data['phone'] ?? data['businessPhone'] ?? '',
+      businessPhone: data['businessPhone'] ?? data['phone'],
+      budget: data['budget'] ?? '',
+      description: data['description'] ?? data['businessDescription'] ?? '',
+      businessDescription: data['businessDescription'] ?? data['description'],
+      isOnline: data['isOnline'] ?? false,
+      rating: data['rating']?.toDouble(),
+      reviewCount: data['reviewCount'],
+      imageURL: data['imageURL'],
+      website: data['website'] ?? data['businessWebsite'],
+      businessWebsite: data['businessWebsite'] ?? data['website'],
+      distance: data['distance']?.toDouble(),
+      yelpURL: data['yelpURL'],
+      latitude: data['latitude']?.toDouble(),
+      longitude: data['longitude']?.toDouble(),
+      ownerUserId: data['ownerUserId'],
+      businessEmail: data['businessEmail'],
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
@@ -216,23 +291,124 @@ class Business {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'businessId': businessId,
       'name': name,
+      'businessName': businessName,
       'category': category,
+      'businessCategory': businessCategory,
       'address': address,
+      'businessAddress': businessAddress,
       'hours': hours,
       'phone': phone,
+      'businessPhone': businessPhone,
       'budget': budget,
       'description': description,
+      'businessDescription': businessDescription,
       'isOnline': isOnline,
       'rating': rating,
       'reviewCount': reviewCount,
       'imageURL': imageURL,
       'website': website,
+      'businessWebsite': businessWebsite,
       'distance': distance,
       'yelpURL': yelpURL,
       'latitude': latitude,
       'longitude': longitude,
+      'ownerUserId': ownerUserId,
+      'businessEmail': businessEmail,
+      'createdAt': createdAt,
     };
+  }
+
+  /// Convert to Firestore document
+  Map<String, dynamic> toFirestore() {
+    return {
+      'name': name,
+      'businessName': businessName,
+      'category': category,
+      'businessCategory': businessCategory,
+      'address': address,
+      'businessAddress': businessAddress,
+      'hours': hours,
+      'phone': phone,
+      'businessPhone': businessPhone,
+      'budget': budget,
+      'description': description,
+      'businessDescription': businessDescription,
+      'isOnline': isOnline,
+      'rating': rating,
+      'reviewCount': reviewCount,
+      'imageURL': imageURL,
+      'website': website,
+      'businessWebsite': businessWebsite,
+      'distance': distance,
+      'yelpURL': yelpURL,
+      'latitude': latitude,
+      'longitude': longitude,
+      'ownerUserId': ownerUserId,
+      'businessEmail': businessEmail,
+      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
+    };
+  }
+
+  Business copyWith({
+    String? id,
+    String? businessId,
+    String? name,
+    String? businessName,
+    String? category,
+    String? businessCategory,
+    String? address,
+    String? businessAddress,
+    String? hours,
+    String? phone,
+    String? businessPhone,
+    String? budget,
+    String? description,
+    String? businessDescription,
+    bool? isOnline,
+    double? rating,
+    int? reviewCount,
+    String? imageURL,
+    String? website,
+    String? businessWebsite,
+    double? distance,
+    String? yelpURL,
+    double? latitude,
+    double? longitude,
+    String? ownerUserId,
+    String? businessEmail,
+    DateTime? createdAt,
+  }) {
+    return Business(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      name: name ?? this.name,
+      businessName: businessName ?? this.businessName,
+      category: category ?? this.category,
+      businessCategory: businessCategory ?? this.businessCategory,
+      address: address ?? this.address,
+      businessAddress: businessAddress ?? this.businessAddress,
+      hours: hours ?? this.hours,
+      phone: phone ?? this.phone,
+      businessPhone: businessPhone ?? this.businessPhone,
+      budget: budget ?? this.budget,
+      description: description ?? this.description,
+      businessDescription: businessDescription ?? this.businessDescription,
+      isOnline: isOnline ?? this.isOnline,
+      rating: rating ?? this.rating,
+      reviewCount: reviewCount ?? this.reviewCount,
+      imageURL: imageURL ?? this.imageURL,
+      website: website ?? this.website,
+      businessWebsite: businessWebsite ?? this.businessWebsite,
+      distance: distance ?? this.distance,
+      yelpURL: yelpURL ?? this.yelpURL,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      ownerUserId: ownerUserId ?? this.ownerUserId,
+      businessEmail: businessEmail ?? this.businessEmail,
+      createdAt: createdAt ?? this.createdAt,
+    );
   }
 
   /// Mock data for testing and development purposes.
@@ -318,88 +494,3 @@ class Business {
     ),
   ];
 }
-=======
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-/// Business Model for Green Book Directory
-class Business {
-  final String businessId;
-  final String businessName;
-  final String businessCategory;
-  final String? businessDescription;
-  final String ownerUserId;
-  final String? businessPhone;
-  final String? businessEmail;
-  final String? businessWebsite;
-  final String? businessAddress;
-  final DateTime createdAt;
-
-  Business({
-    required this.businessId,
-    required this.businessName,
-    required this.businessCategory,
-    this.businessDescription,
-    required this.ownerUserId,
-    this.businessPhone,
-    this.businessEmail,
-    this.businessWebsite,
-    this.businessAddress,
-    required this.createdAt,
-  });
-
-  /// Create from Firestore document
-  factory Business.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Business(
-      businessId: doc.id,
-      businessName: data['businessName'] ?? '',
-      businessCategory: data['businessCategory'] ?? '',
-      businessDescription: data['businessDescription'],
-      ownerUserId: data['ownerUserId'] ?? '',
-      businessPhone: data['businessPhone'],
-      businessEmail: data['businessEmail'],
-      businessWebsite: data['businessWebsite'],
-      businessAddress: data['businessAddress'],
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-    );
-  }
-
-  /// Convert to Firestore document
-  Map<String, dynamic> toFirestore() {
-    return {
-      'businessName': businessName,
-      'businessCategory': businessCategory,
-      'businessDescription': businessDescription,
-      'ownerUserId': ownerUserId,
-      'businessPhone': businessPhone,
-      'businessEmail': businessEmail,
-      'businessWebsite': businessWebsite,
-      'businessAddress': businessAddress,
-      'createdAt': Timestamp.fromDate(createdAt),
-    };
-  }
-
-  Business copyWith({
-    String? businessName,
-    String? businessCategory,
-    String? businessDescription,
-    String? businessPhone,
-    String? businessEmail,
-    String? businessWebsite,
-    String? businessAddress,
-  }) {
-    return Business(
-      businessId: businessId,
-      businessName: businessName ?? this.businessName,
-      businessCategory: businessCategory ?? this.businessCategory,
-      businessDescription: businessDescription ?? this.businessDescription,
-      ownerUserId: ownerUserId,
-      businessPhone: businessPhone ?? this.businessPhone,
-      businessEmail: businessEmail ?? this.businessEmail,
-      businessWebsite: businessWebsite ?? this.businessWebsite,
-      businessAddress: businessAddress ?? this.businessAddress,
-      createdAt: createdAt,
-    );
-  }
-}
->>>>>>> 48e870b02ee1b0c01e22f1fa0652b170ae47e07e

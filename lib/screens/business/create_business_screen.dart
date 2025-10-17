@@ -80,6 +80,21 @@ class _CreateBusinessScreenState extends ConsumerState<CreateBusinessScreen> {
 
     try {
       final business = Business(
+        id: '', // Will be set by Firestore
+        name: _nameController.text.trim(),
+        category: _selectedCategory!,
+        address: _addressController.text.trim().isEmpty 
+            ? 'Address not provided' 
+            : _addressController.text.trim(),
+        hours: 'Hours not specified',
+        phone: _phoneController.text.trim().isEmpty 
+            ? 'Phone not provided' 
+            : _phoneController.text.trim(),
+        budget: 'Not specified',
+        description: _descriptionController.text.trim().isEmpty 
+            ? 'No description provided' 
+            : _descriptionController.text.trim(),
+        isOnline: false,
         businessId: '', // Will be set by Firestore
         businessName: _nameController.text.trim(),
         businessCategory: _selectedCategory!,

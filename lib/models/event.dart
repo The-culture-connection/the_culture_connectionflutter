@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-<<<<<<< HEAD
 /// Event model for calendar events and Ticketmaster events
 class Event {
   final String id;
   final String title;
+  final String header;
   final String details;
   final DateTime date;
   final String place;
@@ -16,10 +16,15 @@ class Event {
   final double? distance;
   final EventSource source;
   final double? searchRelevanceScore;
+  final String? imageUrl;
+  final List<String> attendees;
+  final String? organizerId;
+  final bool isFree;
 
   const Event({
     required this.id,
     required this.title,
+    required this.header,
     required this.details,
     required this.date,
     required this.place,
@@ -31,12 +36,17 @@ class Event {
     this.distance,
     this.source = EventSource.ticketmaster,
     this.searchRelevanceScore,
+    this.imageUrl,
+    this.attendees = const [],
+    this.organizerId,
+    this.isFree = false,
   });
 
   factory Event.fromJson(Map<String, dynamic> json) {
     return Event(
       id: json['id'] ?? '',
       title: json['title'] ?? '',
+      header: json['header'] ?? json['title'] ?? '',
       details: json['details'] ?? '',
       date: json['date'] is Timestamp
           ? (json['date'] as Timestamp).toDate()
@@ -53,6 +63,39 @@ class Event {
         orElse: () => EventSource.ticketmaster,
       ),
       searchRelevanceScore: json['searchRelevanceScore']?.toDouble(),
+      imageUrl: json['imageUrl'],
+      attendees: List<String>.from(json['attendees'] ?? []),
+      organizerId: json['organizerId'],
+      isFree: json['isFree'] ?? false,
+    );
+  }
+
+  /// Create from Firestore document
+  factory Event.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Event(
+      id: doc.id,
+      title: data['title'] ?? data['Header'] ?? '',
+      header: data['header'] ?? data['Header'] ?? '',
+      details: data['details'] ?? data['Details'] ?? '',
+      date: (data['date'] as Timestamp?)?.toDate() ?? 
+            (data['Date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      place: data['place'] ?? data['Place'] ?? '',
+      url: data['url'],
+      status: data['status'],
+      category: data['category'],
+      organizer: data['organizer'],
+      price: data['price'],
+      distance: data['distance']?.toDouble(),
+      source: EventSource.values.firstWhere(
+        (s) => s.name == data['source'],
+        orElse: () => EventSource.ticketmaster,
+      ),
+      searchRelevanceScore: data['searchRelevanceScore']?.toDouble(),
+      imageUrl: data['imageUrl'],
+      attendees: List<String>.from(data['attendees'] ?? []),
+      organizerId: data['organizerId'],
+      isFree: data['isFree'] ?? false,
     );
   }
 
@@ -60,6 +103,7 @@ class Event {
     return {
       'id': id,
       'title': title,
+      'header': header,
       'details': details,
       'date': date,
       'place': place,
@@ -71,13 +115,46 @@ class Event {
       'distance': distance,
       'source': source.name,
       'searchRelevanceScore': searchRelevanceScore,
+      'imageUrl': imageUrl,
+      'attendees': attendees,
+      'organizerId': organizerId,
+      'isFree': isFree,
     };
   }
 
+  /// Convert to Firestore document
+  Map<String, dynamic> toFirestore() {
+    return {
+      'title': title,
+      'Header': header,
+      'Details': details,
+      'Date': Timestamp.fromDate(date),
+      'Place': place,
+      'url': url,
+      'status': status,
+      'category': category,
+      'organizer': organizer,
+      'price': price,
+      'distance': distance,
+      'source': source.name,
+      'searchRelevanceScore': searchRelevanceScore,
+      'imageUrl': imageUrl,
+      'attendees': attendees,
+      'organizerId': organizerId,
+      'isFree': isFree,
+    };
+  }
+
+  /// Check if user is attending
+  bool isUserAttending(String userId) {
+    return attendees.contains(userId);
+  }
+
+  /// Get attendee count
+  int get attendeeCount => attendees.length;
+
   // Getters for display properties
   String get description => details;
-  
-  bool get isFree => price == null || price!.toLowerCase().contains('free');
   
   String get displayDate {
     final now = DateTime.now();
@@ -133,6 +210,47 @@ class Event {
     final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
     return '$displayHour:$minute $period';
   }
+
+  Event copyWith({
+    String? title,
+    String? header,
+    String? details,
+    DateTime? date,
+    String? place,
+    String? url,
+    String? status,
+    String? category,
+    String? organizer,
+    String? price,
+    double? distance,
+    EventSource? source,
+    double? searchRelevanceScore,
+    String? imageUrl,
+    List<String>? attendees,
+    String? organizerId,
+    bool? isFree,
+  }) {
+    return Event(
+      id: id,
+      title: title ?? this.title,
+      header: header ?? this.header,
+      details: details ?? this.details,
+      date: date ?? this.date,
+      place: place ?? this.place,
+      url: url ?? this.url,
+      status: status ?? this.status,
+      category: category ?? this.category,
+      organizer: organizer ?? this.organizer,
+      price: price ?? this.price,
+      distance: distance ?? this.distance,
+      source: source ?? this.source,
+      searchRelevanceScore: searchRelevanceScore ?? this.searchRelevanceScore,
+      imageUrl: imageUrl ?? this.imageUrl,
+      attendees: attendees ?? this.attendees,
+      organizerId: organizerId ?? this.organizerId,
+      isFree: isFree ?? this.isFree,
+    );
+  }
 }
 
 /// Event source enum
@@ -153,89 +271,3 @@ enum EventSource {
     }
   }
 }
-=======
-/// Event Model
-class Event {
-  final String id;
-  final String header;
-  final String details;
-  final DateTime date;
-  final String place;
-  final String? imageUrl;
-  final String? category;
-  final List<String> attendees;
-  final String? organizerId;
-  
-  Event({
-    required this.id,
-    required this.header,
-    required this.details,
-    required this.date,
-    required this.place,
-    this.imageUrl,
-    this.category,
-    this.attendees = const [],
-    this.organizerId,
-  });
-
-  /// Create from Firestore document
-  factory Event.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return Event(
-      id: doc.id,
-      header: data['Header'] ?? '',
-      details: data['Details'] ?? '',
-      date: (data['Date'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      place: data['Place'] ?? '',
-      imageUrl: data['imageUrl'],
-      category: data['category'],
-      attendees: List<String>.from(data['attendees'] ?? []),
-      organizerId: data['organizerId'],
-    );
-  }
-
-  /// Convert to Firestore document
-  Map<String, dynamic> toFirestore() {
-    return {
-      'Header': header,
-      'Details': details,
-      'Date': Timestamp.fromDate(date),
-      'Place': place,
-      'imageUrl': imageUrl,
-      'category': category,
-      'attendees': attendees,
-      'organizerId': organizerId,
-    };
-  }
-
-  /// Check if user is attending
-  bool isUserAttending(String userId) {
-    return attendees.contains(userId);
-  }
-
-  /// Get attendee count
-  int get attendeeCount => attendees.length;
-
-  Event copyWith({
-    String? header,
-    String? details,
-    DateTime? date,
-    String? place,
-    String? imageUrl,
-    String? category,
-    List<String>? attendees,
-  }) {
-    return Event(
-      id: id,
-      header: header ?? this.header,
-      details: details ?? this.details,
-      date: date ?? this.date,
-      place: place ?? this.place,
-      imageUrl: imageUrl ?? this.imageUrl,
-      category: category ?? this.category,
-      attendees: attendees ?? this.attendees,
-      organizerId: organizerId,
-    );
-  }
-}
->>>>>>> 48e870b02ee1b0c01e22f1fa0652b170ae47e07e

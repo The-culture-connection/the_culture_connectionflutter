@@ -266,6 +266,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
       // 3. Create user profile in Firestore
       final userProfile = UserProfile(
+        id: userId,
         userId: userId,
         fullName: _nameController.text.trim(),
         age: 0, // Not collected in this flow
@@ -278,9 +279,9 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         totalPoints: 0,
         blockedUsers: {},
         genderPreferences: 'Everyone',
-        agePreferences: 'Everyone',
         connectionPreference: 'Both',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
         lastActive: DateTime.now(),
       );
 

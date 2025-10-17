@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import '../../constants/app_colors.dart';
+import '../../models/message.dart' as message_model;
 import '../../models/user_profile.dart';
-import '../../models/message.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/firestore_service.dart';
 
 class ChatDetailScreen extends ConsumerStatefulWidget {
   final String chatRoomId;
@@ -39,7 +38,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
     final userId = ref.read(currentUserIdProvider);
     if (userId == null) return;
 
-    final message = Message(
+    final message = message_model.Message(
       id: '',
       senderId: userId,
       text: text,
@@ -112,7 +111,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
         children: [
           // Messages list
           Expanded(
-            child: StreamBuilder<List<Message>>(
+            child: StreamBuilder<List<message_model.Message>>(
               stream: firestoreService.streamMessages(widget.chatRoomId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -165,7 +164,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
               color: const Color(0xFF2A2A2A),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 4,
                   offset: const Offset(0, -2),
                 ),
@@ -180,7 +179,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: 'Type a message...',
-                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+                        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                         filled: true,
                         fillColor: const Color(0xFF1d1d1e),
                         border: OutlineInputBorder(
@@ -216,7 +215,7 @@ class _ChatDetailScreenState extends ConsumerState<ChatDetailScreen> {
 }
 
 class _MessageBubble extends StatelessWidget {
-  final Message message;
+  final message_model.Message message;
   final bool isMe;
   final bool showTimestamp;
 
@@ -271,7 +270,7 @@ class _MessageBubble extends StatelessWidget {
                     timeago.format(message.timestamp),
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.white.withOpacity(0.4),
+                      color: Colors.white.withValues(alpha: 0.4),
                     ),
                   ),
                 ],

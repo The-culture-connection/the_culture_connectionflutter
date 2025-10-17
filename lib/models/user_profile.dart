@@ -1,9 +1,13 @@
-<<<<<<< HEAD
-/// Simple UserProfile model to fix compilation errors
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// User Profile Model - Unified for both old and new registration flows
 class UserProfile {
   final String id;
+  final String userId;
+  final String fullName;
   final String fullname;
   final int age;
+  final String gender;
   final String bio;
   final String experienceLevel;
   final String greekOrganization;
@@ -14,7 +18,13 @@ class UserProfile {
   final String major;
   final String personalityTraits;
   final String skills;
+  final List<String> skillsOffering;
+  final List<String> skillsSeeking;
+  final List<String> purposes;
   final String photoURL;
+  final String? fcmToken;
+  final int totalPoints;
+  final Map<String, bool> blockedUsers;
   final String connectionPreference;
   final bool matchByIndustry;
   final String selectedIndustry;
@@ -32,81 +42,163 @@ class UserProfile {
   final double? longitude;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? lastActive;
 
   const UserProfile({
     required this.id,
-    required this.fullname,
+    this.userId = '',
+    required this.fullName,
+    this.fullname = '',
     required this.age,
-    required this.bio,
+    this.gender = '',
+    this.bio = '',
     required this.experienceLevel,
-    required this.greekOrganization,
-    required this.otherOrganizations,
-    required this.industry,
-    required this.interests,
-    required this.jobTitle,
-    required this.major,
-    required this.personalityTraits,
-    required this.skills,
-    required this.photoURL,
-    required this.connectionPreference,
-    required this.matchByIndustry,
-    required this.selectedIndustry,
-    required this.speedMentoring,
-    required this.minAgeSeeking,
-    required this.maxAgeSeeking,
-    required this.genderPreferences,
-    required this.networkinggoal,
-    required this.personalityTrait,
-    required this.jobLevel,
-    required this.wantsToImprove,
-    required this.email,
-    required this.location,
+    this.greekOrganization = '',
+    this.otherOrganizations = '',
+    this.industry = '',
+    this.interests = '',
+    this.jobTitle = '',
+    this.major = '',
+    this.personalityTraits = '',
+    this.skills = '',
+    this.skillsOffering = const [],
+    this.skillsSeeking = const [],
+    this.purposes = const [],
+    this.photoURL = '',
+    this.fcmToken,
+    this.totalPoints = 0,
+    this.blockedUsers = const {},
+    this.connectionPreference = '',
+    this.matchByIndustry = false,
+    this.selectedIndustry = '',
+    this.speedMentoring = false,
+    this.minAgeSeeking = 18,
+    this.maxAgeSeeking = 50,
+    this.genderPreferences = '',
+    this.networkinggoal = '',
+    this.personalityTrait = '',
+    this.jobLevel = '',
+    this.wantsToImprove = '',
+    this.email = '',
+    this.location = '',
     this.latitude,
     this.longitude,
     required this.createdAt,
     required this.updatedAt,
+    this.lastActive,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> data) {
     return UserProfile(
-      id: data['id'] ?? '',
-      fullname: data['Full Name'] ?? 'Unknown',
-      age: data['Age'] ?? 0,
-      bio: data['Bio'] ?? '',
-      experienceLevel: data['Experience Level'] ?? 'Not specified',
-      greekOrganization: data['Greek Organization'] ?? 'Not specified',
-      otherOrganizations: data['Other Organizations'] ?? 'Not specified',
-      industry: data['Industry'] ?? 'Not specified',
-      interests: data['Interests and Hobbies'] ?? 'Not specified',
-      jobTitle: data['Job Title'] ?? 'Not specified',
-      major: data['Major'] ?? 'Not specified',
-      personalityTraits: data['Personality Traits'] ?? 'Not specified',
-      skills: data['Skills'] ?? 'Not specified',
+      id: data['id'] ?? data['userId'] ?? '',
+      userId: data['userId'] ?? data['id'] ?? '',
+      fullName: data['Full Name'] ?? data['fullName'] ?? 'Unknown',
+      fullname: data['fullname'] ?? data['Full Name'] ?? data['fullName'] ?? 'Unknown',
+      age: data['Age'] ?? data['age'] ?? 0,
+      gender: data['Gender'] ?? data['gender'] ?? '',
+      bio: data['Bio'] ?? data['bio'] ?? '',
+      experienceLevel: data['Experience Level'] ?? data['experienceLevel'] ?? 'Not specified',
+      greekOrganization: data['Greek Organization'] ?? data['greekOrganization'] ?? 'Not specified',
+      otherOrganizations: data['Other Organizations'] ?? data['otherOrganizations'] ?? 'Not specified',
+      industry: data['Industry'] ?? data['industry'] ?? 'Not specified',
+      interests: data['Interests and Hobbies'] ?? data['interests'] ?? 'Not specified',
+      jobTitle: data['Job Title'] ?? data['jobTitle'] ?? 'Not specified',
+      major: data['Major'] ?? data['major'] ?? 'Not specified',
+      personalityTraits: data['Personality Traits'] ?? data['personalityTraits'] ?? 'Not specified',
+      skills: data['Skills'] ?? data['skills'] ?? 'Not specified',
+      skillsOffering: List<String>.from(data['Skills Offering'] ?? data['skillsOffering'] ?? []),
+      skillsSeeking: List<String>.from(data['Skills Seeking'] ?? data['skillsSeeking'] ?? []),
+      purposes: List<String>.from(data['Purposes'] ?? data['purposes'] ?? []),
       photoURL: data['photoURL'] ?? '',
-      connectionPreference: data['Connection Preference'] ?? 'Mentee',
+      fcmToken: data['fcmToken'],
+      totalPoints: data['totalPoints'] ?? 0,
+      blockedUsers: Map<String, bool>.from(data['blockedUsers'] ?? {}),
+      connectionPreference: data['Connection Preference'] ?? data['connectionPreference'] ?? 'Mentee',
+      matchByIndustry: data['matchByIndustry'] ?? false,
+      selectedIndustry: data['selectedIndustry'] ?? '',
+      speedMentoring: data['Speed Mentoring'] ?? data['speedMentoring'] ?? false,
+      minAgeSeeking: data['minageseeking'] ?? data['minAgeSeeking'] ?? 18,
+      maxAgeSeeking: data['maxageseeking'] ?? data['maxAgeSeeking'] ?? 50,
+      genderPreferences: data['Gender Preferences'] ?? data['genderPreferences'] ?? 'Everyone',
+      networkinggoal: data['Networking Goal'] ?? data['networkinggoal'] ?? 'Problem-Solving and Critical Thinking',
+      personalityTrait: data['Personality Trait'] ?? data['personalityTrait'] ?? 'Not specified',
+      jobLevel: data['Experience Level'] ?? data['jobLevel'] ?? 'Mid-Level',
+      wantsToImprove: data['Areas of Improvement'] ?? data['wantsToImprove'] ?? 'Leadership and Management',
+      email: data['email'] ?? '',
+      location: data['location'] ?? '',
+      latitude: data['latitude']?.toDouble(),
+      longitude: data['longitude']?.toDouble(),
+      createdAt: data['createdAt'] is Timestamp 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : data['createdAt'] != null 
+              ? DateTime.parse(data['createdAt'])
+              : DateTime.now(),
+      updatedAt: data['updatedAt'] is Timestamp 
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : data['updatedAt'] != null 
+              ? DateTime.parse(data['updatedAt'])
+              : DateTime.now(),
+      lastActive: data['lastActive'] is Timestamp 
+          ? (data['lastActive'] as Timestamp).toDate()
+          : data['lastActive'] != null 
+              ? DateTime.parse(data['lastActive'])
+              : null,
+    );
+  }
+
+  /// Create from Firestore document
+  factory UserProfile.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return UserProfile(
+      id: doc.id,
+      userId: doc.id,
+      fullName: data['Full Name'] ?? '',
+      fullname: data['Full Name'] ?? '',
+      age: data['Age'] ?? 0,
+      gender: data['Gender'] ?? '',
+      bio: data['Bio'] ?? '',
+      experienceLevel: data['Experience Level'] ?? '',
+      greekOrganization: data['Greek Organization'] ?? '',
+      otherOrganizations: data['Other Organizations'] ?? '',
+      industry: data['Industry'] ?? '',
+      interests: data['Interests and Hobbies'] ?? '',
+      jobTitle: data['Job Title'] ?? '',
+      major: data['Major'] ?? '',
+      personalityTraits: data['Personality Traits'] ?? '',
+      skills: data['Skills'] ?? '',
+      skillsOffering: List<String>.from(data['Skills Offering'] ?? []),
+      skillsSeeking: List<String>.from(data['Skills Seeking'] ?? []),
+      purposes: List<String>.from(data['Purposes'] ?? []),
+      photoURL: data['photoURL'] ?? '',
+      fcmToken: data['fcmToken'],
+      totalPoints: data['totalPoints'] ?? 0,
+      blockedUsers: Map<String, bool>.from(data['blockedUsers'] ?? {}),
+      connectionPreference: data['Connection Preference'] ?? '',
       matchByIndustry: data['matchByIndustry'] ?? false,
       selectedIndustry: data['selectedIndustry'] ?? '',
       speedMentoring: data['Speed Mentoring'] ?? false,
       minAgeSeeking: data['minageseeking'] ?? 18,
       maxAgeSeeking: data['maxageseeking'] ?? 50,
-      genderPreferences: data['Gender Preferences'] ?? 'Everyone',
-      networkinggoal: data['Networking Goal'] ?? 'Problem-Solving and Critical Thinking',
-      personalityTrait: data['Personality Trait'] ?? 'Not specified',
-      jobLevel: data['Experience Level'] ?? 'Mid-Level',
-      wantsToImprove: data['Areas of Improvement'] ?? 'Leadership and Management',
+      genderPreferences: data['Gender Preferences'] ?? '',
+      networkinggoal: data['Networking Goal'] ?? '',
+      personalityTrait: data['Personality Trait'] ?? '',
+      jobLevel: data['Experience Level'] ?? '',
+      wantsToImprove: data['Areas of Improvement'] ?? '',
       email: data['email'] ?? '',
       location: data['location'] ?? '',
       latitude: data['latitude']?.toDouble(),
       longitude: data['longitude']?.toDouble(),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastActive: (data['lastActive'] as Timestamp?)?.toDate(),
     );
   }
 
   /// Get user initials from fullname
   String get initials {
-    if (fullname.isEmpty) return 'U';
-    final names = fullname.trim().split(' ');
+    final name = fullName.isNotEmpty ? fullName : fullname;
+    if (name.isEmpty) return 'U';
+    final names = name.trim().split(' ');
     if (names.length == 1) {
       return names[0].substring(0, 1).toUpperCase();
     }
@@ -114,193 +206,7 @@ class UserProfile {
   }
 
   /// Get display name (alias for fullname)
-  String get displayName => fullname;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'fullname': fullname,
-      'age': age,
-      'bio': bio,
-      'experienceLevel': experienceLevel,
-      'greekOrganization': greekOrganization,
-      'otherOrganizations': otherOrganizations,
-      'industry': industry,
-      'interests': interests,
-      'jobTitle': jobTitle,
-      'major': major,
-      'personalityTraits': personalityTraits,
-      'skills': skills,
-      'photoURL': photoURL,
-      'connectionPreference': connectionPreference,
-      'matchByIndustry': matchByIndustry,
-      'selectedIndustry': selectedIndustry,
-      'speedMentoring': speedMentoring,
-      'minAgeSeeking': minAgeSeeking,
-      'maxAgeSeeking': maxAgeSeeking,
-      'genderPreferences': genderPreferences,
-      'networkinggoal': networkinggoal,
-      'personalityTrait': personalityTrait,
-      'jobLevel': jobLevel,
-      'wantsToImprove': wantsToImprove,
-      'email': email,
-      'location': location,
-      'latitude': latitude,
-      'longitude': longitude,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-    };
-  }
-=======
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-/// User Profile Model - Simplified for new registration flow
-class UserProfile {
-  final String userId;
-  final String fullName;
-  final int age;
-  final String gender;
-  final String experienceLevel;
-  final List<String> skillsOffering;
-  final List<String> skillsSeeking;
-  final List<String> purposes; // "What brought you here"
-  final String? photoURL;
-  final String? fcmToken;
-  final int totalPoints;
-  final Map<String, bool> blockedUsers;
-  
-  // Preferences
-  final String? genderPreferences;
-  final String? agePreferences;
-  final String? connectionPreference;
-  final String? networkingGoal;
-  final String? relationshipGoal;
-  final String? friendshipGoal;
-  
-  // Metadata
-  final DateTime createdAt;
-  final DateTime? lastActive;
-
-  UserProfile({
-    required this.userId,
-    required this.fullName,
-    required this.age,
-    required this.gender,
-    required this.experienceLevel,
-    required this.skillsOffering,
-    required this.skillsSeeking,
-    this.purposes = const [],
-    this.photoURL,
-    this.fcmToken,
-    this.totalPoints = 0,
-    this.blockedUsers = const {},
-    this.genderPreferences,
-    this.agePreferences,
-    this.connectionPreference,
-    this.networkingGoal,
-    this.relationshipGoal,
-    this.friendshipGoal,
-    required this.createdAt,
-    this.lastActive,
-  });
-
-  /// Create from Firestore document
-  factory UserProfile.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return UserProfile(
-      userId: doc.id,
-      fullName: data['Full Name'] ?? '',
-      age: data['Age'] ?? 0,
-      gender: data['Gender'] ?? '',
-      experienceLevel: data['Experience Level'] ?? '',
-      skillsOffering: List<String>.from(data['Skills Offering'] ?? []),
-      skillsSeeking: List<String>.from(data['Skills Seeking'] ?? []),
-      purposes: List<String>.from(data['Purposes'] ?? []),
-      photoURL: data['photoURL'],
-      fcmToken: data['fcmToken'],
-      totalPoints: data['totalPoints'] ?? 0,
-      blockedUsers: Map<String, bool>.from(data['blockedUsers'] ?? {}),
-      genderPreferences: data['Gender Preferences'],
-      agePreferences: data['Age Preferences'],
-      connectionPreference: data['Connection Preference'],
-      networkingGoal: data['Networking Goal'],
-      relationshipGoal: data['Relationship Goal'],
-      friendshipGoal: data['Friendship Goal'],
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      lastActive: (data['lastActive'] as Timestamp?)?.toDate(),
-    );
-  }
-
-  /// Convert to Firestore document
-  Map<String, dynamic> toFirestore() {
-    return {
-      'UserId': userId,
-      'Full Name': fullName,
-      'Age': age,
-      'Gender': gender,
-      'Experience Level': experienceLevel,
-      'Skills Offering': skillsOffering,
-      'Skills Seeking': skillsSeeking,
-      'Purposes': purposes,
-      'photoURL': photoURL,
-      'fcmToken': fcmToken,
-      'totalPoints': totalPoints,
-      'blockedUsers': blockedUsers,
-      'Gender Preferences': genderPreferences,
-      'Age Preferences': agePreferences,
-      'Connection Preference': connectionPreference,
-      'Networking Goal': networkingGoal,
-      'Relationship Goal': relationshipGoal,
-      'Friendship Goal': friendshipGoal,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'lastActive': lastActive != null ? Timestamp.fromDate(lastActive!) : null,
-    };
-  }
-
-  /// Copy with method for updating profile
-  UserProfile copyWith({
-    String? fullName,
-    int? age,
-    String? gender,
-    String? experienceLevel,
-    List<String>? skillsOffering,
-    List<String>? skillsSeeking,
-    List<String>? purposes,
-    String? photoURL,
-    String? fcmToken,
-    int? totalPoints,
-    Map<String, bool>? blockedUsers,
-    String? genderPreferences,
-    String? agePreferences,
-    String? connectionPreference,
-    String? networkingGoal,
-    String? relationshipGoal,
-    String? friendshipGoal,
-    DateTime? lastActive,
-  }) {
-    return UserProfile(
-      userId: userId,
-      fullName: fullName ?? this.fullName,
-      age: age ?? this.age,
-      gender: gender ?? this.gender,
-      experienceLevel: experienceLevel ?? this.experienceLevel,
-      skillsOffering: skillsOffering ?? this.skillsOffering,
-      skillsSeeking: skillsSeeking ?? this.skillsSeeking,
-      purposes: purposes ?? this.purposes,
-      photoURL: photoURL ?? this.photoURL,
-      fcmToken: fcmToken ?? this.fcmToken,
-      totalPoints: totalPoints ?? this.totalPoints,
-      blockedUsers: blockedUsers ?? this.blockedUsers,
-      genderPreferences: genderPreferences ?? this.genderPreferences,
-      agePreferences: agePreferences ?? this.agePreferences,
-      connectionPreference: connectionPreference ?? this.connectionPreference,
-      networkingGoal: networkingGoal ?? this.networkingGoal,
-      relationshipGoal: relationshipGoal ?? this.relationshipGoal,
-      friendshipGoal: friendshipGoal ?? this.friendshipGoal,
-      createdAt: createdAt,
-      lastActive: lastActive ?? this.lastActive,
-    );
-  }
+  String get displayName => fullName.isNotEmpty ? fullName : fullname;
 
   /// Check if user has specific skill offering
   bool hasSkillOffering(String skill) {
@@ -359,7 +265,7 @@ class UserProfile {
     }
     
     // Both have profile photos (up to 10 points)
-    if (photoURL != null && other.photoURL != null) {
+    if (photoURL.isNotEmpty && other.photoURL.isNotEmpty) {
       score += 10;
     }
     
@@ -388,9 +294,188 @@ class UserProfile {
     return (index1 - index2).abs() == 1;
   }
 
+  /// Copy with method for updating profile
+  UserProfile copyWith({
+    String? id,
+    String? userId,
+    String? fullName,
+    String? fullname,
+    int? age,
+    String? gender,
+    String? bio,
+    String? experienceLevel,
+    String? greekOrganization,
+    String? otherOrganizations,
+    String? industry,
+    String? interests,
+    String? jobTitle,
+    String? major,
+    String? personalityTraits,
+    String? skills,
+    List<String>? skillsOffering,
+    List<String>? skillsSeeking,
+    List<String>? purposes,
+    String? photoURL,
+    String? fcmToken,
+    int? totalPoints,
+    Map<String, bool>? blockedUsers,
+    String? connectionPreference,
+    bool? matchByIndustry,
+    String? selectedIndustry,
+    bool? speedMentoring,
+    int? minAgeSeeking,
+    int? maxAgeSeeking,
+    String? genderPreferences,
+    String? networkinggoal,
+    String? personalityTrait,
+    String? jobLevel,
+    String? wantsToImprove,
+    String? email,
+    String? location,
+    double? latitude,
+    double? longitude,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? lastActive,
+  }) {
+    return UserProfile(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      fullName: fullName ?? this.fullName,
+      fullname: fullname ?? this.fullname,
+      age: age ?? this.age,
+      gender: gender ?? this.gender,
+      bio: bio ?? this.bio,
+      experienceLevel: experienceLevel ?? this.experienceLevel,
+      greekOrganization: greekOrganization ?? this.greekOrganization,
+      otherOrganizations: otherOrganizations ?? this.otherOrganizations,
+      industry: industry ?? this.industry,
+      interests: interests ?? this.interests,
+      jobTitle: jobTitle ?? this.jobTitle,
+      major: major ?? this.major,
+      personalityTraits: personalityTraits ?? this.personalityTraits,
+      skills: skills ?? this.skills,
+      skillsOffering: skillsOffering ?? this.skillsOffering,
+      skillsSeeking: skillsSeeking ?? this.skillsSeeking,
+      purposes: purposes ?? this.purposes,
+      photoURL: photoURL ?? this.photoURL,
+      fcmToken: fcmToken ?? this.fcmToken,
+      totalPoints: totalPoints ?? this.totalPoints,
+      blockedUsers: blockedUsers ?? this.blockedUsers,
+      connectionPreference: connectionPreference ?? this.connectionPreference,
+      matchByIndustry: matchByIndustry ?? this.matchByIndustry,
+      selectedIndustry: selectedIndustry ?? this.selectedIndustry,
+      speedMentoring: speedMentoring ?? this.speedMentoring,
+      minAgeSeeking: minAgeSeeking ?? this.minAgeSeeking,
+      maxAgeSeeking: maxAgeSeeking ?? this.maxAgeSeeking,
+      genderPreferences: genderPreferences ?? this.genderPreferences,
+      networkinggoal: networkinggoal ?? this.networkinggoal,
+      personalityTrait: personalityTrait ?? this.personalityTrait,
+      jobLevel: jobLevel ?? this.jobLevel,
+      wantsToImprove: wantsToImprove ?? this.wantsToImprove,
+      email: email ?? this.email,
+      location: location ?? this.location,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      lastActive: lastActive ?? this.lastActive,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'fullName': fullName,
+      'fullname': fullname,
+      'age': age,
+      'gender': gender,
+      'bio': bio,
+      'experienceLevel': experienceLevel,
+      'greekOrganization': greekOrganization,
+      'otherOrganizations': otherOrganizations,
+      'industry': industry,
+      'interests': interests,
+      'jobTitle': jobTitle,
+      'major': major,
+      'personalityTraits': personalityTraits,
+      'skills': skills,
+      'skillsOffering': skillsOffering,
+      'skillsSeeking': skillsSeeking,
+      'purposes': purposes,
+      'photoURL': photoURL,
+      'fcmToken': fcmToken,
+      'totalPoints': totalPoints,
+      'blockedUsers': blockedUsers,
+      'connectionPreference': connectionPreference,
+      'matchByIndustry': matchByIndustry,
+      'selectedIndustry': selectedIndustry,
+      'speedMentoring': speedMentoring,
+      'minAgeSeeking': minAgeSeeking,
+      'maxAgeSeeking': maxAgeSeeking,
+      'genderPreferences': genderPreferences,
+      'networkinggoal': networkinggoal,
+      'personalityTrait': personalityTrait,
+      'jobLevel': jobLevel,
+      'wantsToImprove': wantsToImprove,
+      'email': email,
+      'location': location,
+      'latitude': latitude,
+      'longitude': longitude,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+      'lastActive': lastActive,
+    };
+  }
+
+  /// Convert to Firestore document
+  Map<String, dynamic> toFirestore() {
+    return {
+      'UserId': userId,
+      'Full Name': fullName,
+      'Age': age,
+      'Gender': gender,
+      'Bio': bio,
+      'Experience Level': experienceLevel,
+      'Greek Organization': greekOrganization,
+      'Other Organizations': otherOrganizations,
+      'Industry': industry,
+      'Interests and Hobbies': interests,
+      'Job Title': jobTitle,
+      'Major': major,
+      'Personality Traits': personalityTraits,
+      'Skills': skills,
+      'Skills Offering': skillsOffering,
+      'Skills Seeking': skillsSeeking,
+      'Purposes': purposes,
+      'photoURL': photoURL,
+      'fcmToken': fcmToken,
+      'totalPoints': totalPoints,
+      'blockedUsers': blockedUsers,
+      'Connection Preference': connectionPreference,
+      'matchByIndustry': matchByIndustry,
+      'selectedIndustry': selectedIndustry,
+      'Speed Mentoring': speedMentoring,
+      'minageseeking': minAgeSeeking,
+      'maxageseeking': maxAgeSeeking,
+      'Gender Preferences': genderPreferences,
+      'Networking Goal': networkinggoal,
+      'Personality Trait': personalityTrait,
+      'Experience Level': jobLevel,
+      'Areas of Improvement': wantsToImprove,
+      'email': email,
+      'location': location,
+      'latitude': latitude,
+      'longitude': longitude,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+      'lastActive': lastActive != null ? Timestamp.fromDate(lastActive!) : null,
+    };
+  }
+
   @override
   String toString() {
     return 'UserProfile(userId: $userId, fullName: $fullName, experienceLevel: $experienceLevel)';
   }
->>>>>>> 48e870b02ee1b0c01e22f1fa0652b170ae47e07e
 }

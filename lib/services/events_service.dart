@@ -241,6 +241,7 @@ class EventsService extends ChangeNotifier {
           final event = Event(
             id: eventData['id'] ?? '',
             title: eventData['title'] ?? 'Untitled Event',
+            header: eventData['title'] ?? 'Untitled Event',
             details: eventData['description'] ?? 'Ticketmaster Event',
             date: _parseEventDate(eventData['startsAt']),
             place: _parseEventLocation(eventData),

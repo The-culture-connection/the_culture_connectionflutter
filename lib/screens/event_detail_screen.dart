@@ -904,6 +904,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       setState(() {
         _userProfile = UserProfile(
           id: widget.userId,
+          fullName: widget.userName,
           fullname: widget.userName,
           age: 25,
           bio: 'Passionate about technology and community building.',
