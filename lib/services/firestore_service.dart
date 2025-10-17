@@ -150,7 +150,8 @@ class FirestoreService {
         .get();
 
     for (var doc in existingRooms.docs) {
-      final participants = List<String>.from(doc.data() as Map)['participants'];
+      final data = doc.data() as Map<String, dynamic>;
+      final participants = List<String>.from(data['participants'] as List);
       if (participants.contains(user2Id)) {
         return doc.id;
       }
@@ -170,11 +171,22 @@ class FirestoreService {
   Stream<List<ChatRoom>> streamUserChatRooms(String userId) {
     return _chatRoomsCollection
         .where('participants', arrayContains: userId)
-        .orderBy('lastMessageTimestamp', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ChatRoom.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final chatRooms = snapshot.docs
+              .map((doc) => ChatRoom.fromFirestore(doc))
+              .toList();
+          
+          // Sort by lastMessageTimestamp in Dart instead of Firestore
+          chatRooms.sort((a, b) {
+            if (a.lastMessageTimestamp == null && b.lastMessageTimestamp == null) return 0;
+            if (a.lastMessageTimestamp == null) return 1;
+            if (b.lastMessageTimestamp == null) return -1;
+            return b.lastMessageTimestamp!.compareTo(a.lastMessageTimestamp!);
+          });
+          
+          return chatRooms;
+        });
   }
 
   /// Send message
