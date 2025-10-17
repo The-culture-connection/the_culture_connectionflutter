@@ -31,7 +31,6 @@ class CultureConnectionApp extends ConsumerWidget {
           primary: AppColors.deepPurple,
           secondary: AppColors.electricOrange,
           surface: const Color(0xFF1d1d1e),
-          background: const Color(0xFF1d1d1e),
         ),
         scaffoldBackgroundColor: const Color(0xFF1d1d1e),
         fontFamily: 'Inter',
