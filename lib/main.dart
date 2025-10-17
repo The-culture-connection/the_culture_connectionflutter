@@ -4,7 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'constants/app_colors.dart';
-import 'screens/auth/login_screen.dart';
+import 'screens/auth/welcome_screen.dart';
 import 'screens/main_navigation_screen.dart';
 
 void main() async {
@@ -112,7 +112,7 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: FirebaseAuth.instance.idTokenChanges(), // More reliable than authStateChanges
       builder: (context, snapshot) {
         // Show loading while checking auth state
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -128,11 +128,12 @@ class AuthWrapper extends StatelessWidget {
 
         // If user is logged in, show main app
         if (snapshot.hasData && snapshot.data != null) {
+          // Clear all previous routes and show main app
           return const MainNavigationScreen();
         }
 
-        // Otherwise show login
-        return const LoginScreen();
+        // Otherwise show welcome screen
+        return const WelcomeScreen();
       },
     );
   }

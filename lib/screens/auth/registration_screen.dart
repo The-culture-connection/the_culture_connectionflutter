@@ -294,16 +294,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         'profile_created',
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration successful! Welcome to Culture Connection!'),
-            backgroundColor: AppColors.success,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        // Navigation handled by GoRouter auth state
-      }
+      // Success! AuthWrapper will automatically navigate to MainNavigationScreen
+      // because the user is now authenticated
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
