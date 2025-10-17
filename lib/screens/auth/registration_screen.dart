@@ -469,7 +469,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                   ),
                                 )
                               : Text(
-                                  _currentPage < 6 ? 'NEXT' : 'CREATE PROFILE',
+                                  _currentPage < 5 ? 'NEXT' : 'CREATE PROFILE',
                                   style: const TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 16,
@@ -618,8 +618,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
-  // STEP 2: Skills (What can you offer)
-  Widget _buildStep2Skills() {
+  // STEP 2: Skills Offering (What can you offer)
+  Widget _buildStep2SkillsOffering() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -641,15 +641,45 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           const SizedBox(height: 24),
           
           ...SkillsCategories.categories.entries.map((entry) {
-            return _buildSkillCategory(entry.key, entry.value);
+            return _buildSkillCategory(entry.key, entry.value, _selectedSkillsOffering);
           }),
         ],
       ),
     );
   }
 
-  // STEP 3: Experience Level
-  Widget _buildStep3Level() {
+  // STEP 3: Skills Seeking (What are you looking for)
+  Widget _buildStep3SkillsSeeking() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'What skills are you seeking?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Select the skills you want to learn or need help with',
+            style: TextStyle(color: Colors.white.withOpacity(0.6)),
+          ),
+          const SizedBox(height: 24),
+          
+          ...SkillsCategories.categories.entries.map((entry) {
+            return _buildSkillCategory(entry.key, entry.value, _selectedSkillsSeeking);
+          }),
+        ],
+      ),
+    );
+  }
+
+  // STEP 4: Experience Level
+  Widget _buildStep4Level() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -708,8 +738,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
-  // STEP 4: What brings you here (Purpose)
-  Widget _buildStep4Purpose() {
+  // STEP 5: What brings you here (Purpose)
+  Widget _buildStep5Purpose() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -774,8 +804,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
-  // STEP 5: Gender
-  Widget _buildStep5Gender() {
+  // STEP 6: Gender
+  Widget _buildStep6Gender() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -825,78 +855,6 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                 activeColor: AppColors.electricOrange,
                 onChanged: (value) {
                   setState(() => _selectedGender = value);
-                },
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  // STEP 6: Mentor vs Mentee (or Both)
-  Widget _buildStep6MentorMentee() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Your Role',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Are you looking to mentor, be mentored, or both?',
-            style: TextStyle(color: Colors.white.withOpacity(0.6)),
-          ),
-          const SizedBox(height: 24),
-          
-          ...['Mentor', 'Mentee', 'Both'].map((role) {
-            final isSelected = _mentorMenteeRole == role;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: isSelected 
-                    ? AppColors.electricOrange.withOpacity(0.2)
-                    : const Color(0xFF1d1d1e),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isSelected 
-                      ? AppColors.electricOrange 
-                      : AppColors.deepPurple.withOpacity(0.3),
-                  width: 2,
-                ),
-              ),
-              child: RadioListTile<String>(
-                title: Text(
-                  role,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    fontSize: 18,
-                  ),
-                ),
-                subtitle: Text(
-                  role == 'Mentor' 
-                      ? 'Share your knowledge and experience'
-                      : role == 'Mentee'
-                          ? 'Learn from experienced professionals'
-                          : 'Open to both mentoring and being mentored',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
-                    fontSize: 13,
-                  ),
-                ),
-                value: role,
-                groupValue: _mentorMenteeRole,
-                activeColor: AppColors.electricOrange,
-                onChanged: (value) {
-                  setState(() => _mentorMenteeRole = value!);
                 },
               ),
             );
@@ -994,7 +952,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
-  Widget _buildSkillCategory(String category, List<String> skills) {
+  Widget _buildSkillCategory(String category, List<String> skills, Set<String> selectedSkills) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -1013,7 +971,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         iconColor: AppColors.electricOrange,
         collapsedIconColor: Colors.white,
         children: skills.map((skill) {
-          final isSelected = _selectedSkills.contains(skill);
+          final isSelected = selectedSkills.contains(skill);
           return CheckboxListTile(
             title: Text(
               skill,
@@ -1024,9 +982,9 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             onChanged: (bool? value) {
               setState(() {
                 if (value == true) {
-                  _selectedSkills.add(skill);
+                  selectedSkills.add(skill);
                 } else {
-                  _selectedSkills.remove(skill);
+                  selectedSkills.remove(skill);
                 }
               });
             },
