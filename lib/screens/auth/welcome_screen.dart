@@ -15,7 +15,7 @@ class WelcomeScreen extends StatelessWidget {
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/Tamearaimage-3.png'),
+                image: AssetImage('assets/Startimagewologopng.png'),
                 fit: BoxFit.cover,
               ),
             ),
