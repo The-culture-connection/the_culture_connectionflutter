@@ -6,6 +6,8 @@ import 'todays_matches_screen.dart';
 import '../events/events_screen.dart';
 import '../newsfeed_screen.dart';
 import '../search/user_search_screen.dart';
+import '../mentoring/mentoring_connections_screen.dart';
+import '../networking/networking_connections_screen.dart';
 
 class ConnectionsScreen extends ConsumerStatefulWidget {
   const ConnectionsScreen({super.key});
@@ -120,7 +122,7 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const UserSearchScreen(),
+                                  builder: (context) => const MentoringConnectionsScreen(),
                                 ),
                               );
                             },
@@ -135,7 +137,7 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const UserSearchScreen(),
+                                  builder: (context) => const NetworkingConnectionsScreen(),
                                 ),
                               );
                             },

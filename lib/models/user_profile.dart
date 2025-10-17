@@ -112,11 +112,11 @@ class UserProfile {
       photoURL: data['photoURL'] ?? '',
       fcmToken: data['fcmToken'],
       totalPoints: data['totalPoints'] ?? 0,
-      blockedUsers: Map<String, bool>.from(data['blockedUsers'] ?? {}),
+      blockedUsers: _parseBlockedUsers(data['blockedUsers']),
       connectionPreference: data['Connection Preference'] ?? data['connectionPreference'] ?? 'Mentee',
-      matchByIndustry: data['matchByIndustry'] ?? false,
+      matchByIndustry: _parseBoolean(data['matchByIndustry']) ?? false,
       selectedIndustry: data['selectedIndustry'] ?? '',
-      speedMentoring: data['Speed Mentoring'] ?? data['speedMentoring'] ?? false,
+      speedMentoring: _parseBoolean(data['Speed Mentoring'] ?? data['speedMentoring']) ?? false,
       minAgeSeeking: data['minageseeking'] ?? data['minAgeSeeking'] ?? 18,
       maxAgeSeeking: data['maxageseeking'] ?? data['maxAgeSeeking'] ?? 50,
       genderPreferences: data['Gender Preferences'] ?? data['genderPreferences'] ?? 'Everyone',
@@ -146,6 +146,11 @@ class UserProfile {
     );
   }
 
+  /// Create from Map (alias for fromJson)
+  factory UserProfile.fromMap(Map<String, dynamic> data) {
+    return UserProfile.fromJson(data);
+  }
+
   /// Create from Firestore document
   factory UserProfile.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -172,11 +177,11 @@ class UserProfile {
       photoURL: data['photoURL'] ?? '',
       fcmToken: data['fcmToken'],
       totalPoints: data['totalPoints'] ?? 0,
-      blockedUsers: Map<String, bool>.from(data['blockedUsers'] ?? {}),
+      blockedUsers: _parseBlockedUsers(data['blockedUsers']),
       connectionPreference: data['Connection Preference'] ?? '',
-      matchByIndustry: data['matchByIndustry'] ?? false,
+      matchByIndustry: _parseBoolean(data['matchByIndustry']) ?? false,
       selectedIndustry: data['selectedIndustry'] ?? '',
-      speedMentoring: data['Speed Mentoring'] ?? false,
+      speedMentoring: _parseBoolean(data['Speed Mentoring']) ?? false,
       minAgeSeeking: data['minageseeking'] ?? 18,
       maxAgeSeeking: data['maxageseeking'] ?? 50,
       genderPreferences: data['Gender Preferences'] ?? '',
@@ -207,6 +212,37 @@ class UserProfile {
 
   /// Get display name (alias for fullname)
   String get displayName => fullName.isNotEmpty ? fullName : fullname;
+
+  /// Get networking goal (alias for networkinggoal)
+  String get networkingGoal => networkinggoal;
+
+  /// Helper method to parse boolean values from various formats
+  static bool? _parseBoolean(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is String) {
+      final lowerValue = value.toLowerCase();
+      return lowerValue == 'true' || lowerValue == 'yes' || lowerValue == '1';
+    }
+    if (value is int) return value == 1;
+    return false;
+  }
+
+  /// Helper method to parse blocked users map
+  static Map<String, bool> _parseBlockedUsers(dynamic value) {
+    if (value == null) return {};
+    if (value is Map<String, bool>) return value;
+    if (value is Map) {
+      final result = <String, bool>{};
+      value.forEach((key, val) {
+        if (key is String) {
+          result[key] = _parseBoolean(val) ?? false;
+        }
+      });
+      return result;
+    }
+    return {};
+  }
 
   /// Check if user has specific skill offering
   bool hasSkillOffering(String skill) {
