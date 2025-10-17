@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/skills_categories.dart';
 import '../../constants/experience_levels.dart';
@@ -10,7 +12,6 @@ import '../../services/storage_service.dart';
 import '../../services/firestore_service.dart';
 import '../../models/user_profile.dart';
 import '../../utils/validators.dart';
-import 'login_screen.dart';
 
 class RegistrationScreen extends ConsumerStatefulWidget {
   const RegistrationScreen({super.key});
@@ -28,19 +29,23 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _ageController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _stateController = TextEditingController();
 
   // State
-  String? _selectedGender;
-  String? _selectedExperienceLevel;
   File? _profileImage;
-  final Set<String> _selectedSkillsOffering = {};
-  final Set<String> _selectedSkillsSeeking = {};
+  final Set<String> _selectedSkills = {};
+  String? _selectedLevel;
   final Set<String> _selectedPurposes = {};
+  String? _selectedGender;
+  String _mentorMenteeRole = 'Both'; // 'Mentor', 'Mentee', or 'Both'
+  double? _latitude;
+  double? _longitude;
   bool _isLoading = false;
   bool _obscurePassword = true;
 
-  final List<String> _genders = ['Male', 'Female', 'Nonbinary', 'Other'];
+  final List<String> _levels = ['Entry-Level', 'Mid-Level', 'Senior-Level', 'Retired/Advisor'];
+  final List<String> _genders = ['Male', 'Female', 'Nonbinary', 'Prefer not to say'];
   final List<String> _purposes = [
     'Looking to Hire',
     'Starting a business',
@@ -53,7 +58,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _ageController.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -74,31 +80,89 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     }
   }
 
+  Future<void> _getCurrentLocation() async {
+    try {
+      setState(() => _isLoading = true);
+
+      // Check permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Location permissions denied');
+        }
+      }
+
+      // Get position
+      final position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+      });
+
+      // Reverse geocode to get city/state
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        setState(() {
+          _cityController.text = place.locality ?? '';
+          _stateController.text = place.administrativeArea ?? '';
+        });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location detected!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to get location: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _geocodeLocation() async {
+    if (_cityController.text.isEmpty || _stateController.text.isEmpty) {
+      return;
+    }
+
+    try {
+      final query = '${_cityController.text}, ${_stateController.text}';
+      final locations = await locationFromAddress(query);
+      
+      if (locations.isNotEmpty) {
+        setState(() {
+          _latitude = locations.first.latitude;
+          _longitude = locations.first.longitude;
+        });
+      }
+    } catch (e) {
+      // Silent fail - geocoding is optional
+      print('Geocoding failed: $e');
+    }
+  }
+
   Future<void> _register() async {
+    // Validation
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill in all required fields'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-
-    if (_selectedGender == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select your gender'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-
-    if (_selectedExperienceLevel == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select your experience level'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -115,20 +179,20 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       return;
     }
 
-    if (_selectedSkillsOffering.isEmpty) {
+    if (_selectedSkills.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select at least one skill you can offer'),
+          content: Text('Please select at least one skill'),
           backgroundColor: AppColors.error,
         ),
       );
       return;
     }
 
-    if (_selectedSkillsSeeking.isEmpty) {
+    if (_selectedLevel == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select at least one skill you are seeking'),
+          content: Text('Please select your experience level'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -145,9 +209,34 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       return;
     }
 
+    if (_selectedGender == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select your gender'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (_cityController.text.isEmpty || _stateController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your city and state'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
+      // Geocode if not already done
+      if (_latitude == null || _longitude == null) {
+        await _geocodeLocation();
+      }
+
       // 1. Create Firebase Auth account
       final authService = AuthService();
       final userCredential = await authService.signUpWithEmail(
@@ -168,11 +257,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       final userProfile = UserProfile(
         userId: userId,
         fullName: _nameController.text.trim(),
-        age: int.parse(_ageController.text),
+        age: 0, // Not collected in this flow
         gender: _selectedGender!,
-        experienceLevel: _selectedExperienceLevel!,
-        skillsOffering: _selectedSkillsOffering.toList(),
-        skillsSeeking: _selectedSkillsSeeking.toList(),
+        experienceLevel: _selectedLevel!,
+        skillsOffering: _selectedSkills.toList(),
+        skillsSeeking: [], // Not collected separately in this flow
         purposes: _selectedPurposes.toList(),
         photoURL: photoURL,
         totalPoints: 0,
@@ -199,9 +288,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           const SnackBar(
             content: Text('Registration successful! Welcome to Culture Connection!'),
             backgroundColor: AppColors.success,
+            duration: Duration(seconds: 2),
           ),
         );
-        // Navigation handled by auth state listener
+        // Navigation handled by GoRouter auth state
       }
     } catch (e) {
       if (mounted) {
@@ -220,7 +310,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   }
 
   void _nextPage() {
-    if (_currentPage < 3) {
+    if (_currentPage < 6) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -281,14 +371,22 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                           color: AppColors.electricOrange,
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Step ${_currentPage + 1} of 7',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 14,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       // Progress indicator
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(4, (index) {
+                        children: List.generate(7, (index) {
                           return Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            width: 40,
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            width: 35,
                             height: 4,
                             decoration: BoxDecoration(
                               color: index <= _currentPage
@@ -312,10 +410,13 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                       setState(() => _currentPage = page);
                     },
                     children: [
-                      _buildBasicInfoPage(),
-                      _buildSkillsOfferingPage(),
-                      _buildSkillsSeekingPage(),
-                      _buildPurposesPage(),
+                      _buildStep1BasicInfo(),
+                      _buildStep2Skills(),
+                      _buildStep3Level(),
+                      _buildStep4Purpose(),
+                      _buildStep5Gender(),
+                      _buildStep6MentorMentee(),
+                      _buildStep7Location(),
                     ],
                   ),
                 ),
@@ -345,7 +446,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                         child: ElevatedButton(
                           onPressed: _isLoading
                               ? null
-                              : (_currentPage < 3 ? _nextPage : _register),
+                              : (_currentPage < 6 ? _nextPage : _register),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.black.withOpacity(0.8),
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -367,7 +468,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                   ),
                                 )
                               : Text(
-                                  _currentPage < 3 ? 'NEXT' : 'CREATE PROFILE',
+                                  _currentPage < 6 ? 'NEXT' : 'CREATE PROFILE',
                                   style: const TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 16,
@@ -382,19 +483,33 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                   ),
                 ),
                 
-                // Login link
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    );
-                  },
-                  child: const Text(
-                    'Already have an account? Sign In',
-                    style: TextStyle(color: AppColors.electricOrange),
+                // Sign in link
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Already have an account? ',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          );
+                        },
+                        child: const Text(
+                          'Sign In',
+                          style: TextStyle(
+                            color: AppColors.electricOrange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
               ],
             ),
           ),
@@ -403,14 +518,26 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
-  Widget _buildBasicInfoPage() {
+  // STEP 1: Name / Email / Password / Avatar
+  Widget _buildStep1BasicInfo() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Form(
         key: _formKey,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Profile Photo
+            const Text(
+              'Let\'s get started!',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Profile photo
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -418,8 +545,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.electricOrange, width: 3),
-                  color: const Color(0xFF2A2A2A),
+                  color: AppColors.deepPurple.withOpacity(0.3),
+                  border: Border.all(
+                    color: AppColors.electricOrange,
+                    width: 3,
+                  ),
                 ),
                 child: _profileImage != null
                     ? ClipOval(
@@ -429,16 +559,19 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                         ),
                       )
                     : const Icon(
-                        Icons.camera_alt,
+                        Icons.add_a_photo,
                         size: 40,
-                        color: Colors.white,
+                        color: AppColors.electricOrange,
                       ),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Tap to select photo',
-              style: TextStyle(color: Colors.white.withOpacity(0.6)),
+              'Tap to add photo',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 12,
+              ),
             ),
             const SizedBox(height: 24),
             
@@ -462,69 +595,21 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             const SizedBox(height: 16),
             
             // Password
-            TextFormField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Password',
-                labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                prefixIcon: const Icon(Icons.lock, color: Colors.white),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                    color: Colors.white,
-                  ),
-                  onPressed: () {
-                    setState(() => _obscurePassword = !_obscurePassword);
-                  },
-                ),
-                filled: true,
-                fillColor: const Color(0xFF1d1d1e),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.electricOrange, width: 2),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.electricOrange, width: 2),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.electricOrange, width: 2),
-                ),
-              ),
-              validator: Validators.password,
-            ),
-            const SizedBox(height: 16),
-            
-            // Age
             _buildTextField(
-              controller: _ageController,
-              label: 'Age',
-              icon: Icons.calendar_today,
-              keyboardType: TextInputType.number,
-              validator: Validators.age,
-            ),
-            const SizedBox(height: 16),
-            
-            // Gender
-            _buildDropdown(
-              value: _selectedGender,
-              items: _genders,
-              label: 'Gender',
-              icon: Icons.person_outline,
-              onChanged: (value) => setState(() => _selectedGender = value),
-            ),
-            const SizedBox(height: 16),
-            
-            // Experience Level
-            _buildDropdown(
-              value: _selectedExperienceLevel,
-              items: ExperienceLevels.all,
-              label: 'Experience Level',
-              icon: Icons.work_outline,
-              onChanged: (value) => setState(() => _selectedExperienceLevel = value),
+              controller: _passwordController,
+              label: 'Password',
+              icon: Icons.lock,
+              obscureText: _obscurePassword,
+              validator: Validators.password,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                  color: AppColors.electricOrange,
+                ),
+                onPressed: () {
+                  setState(() => _obscurePassword = !_obscurePassword);
+                },
+              ),
             ),
           ],
         ),
@@ -532,14 +617,15 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
-  Widget _buildSkillsOfferingPage() {
+  // STEP 2: Skills (What can you offer)
+  Widget _buildStep2Skills() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Skills You Can Offer',
+            'What can you offer?',
             style: TextStyle(
               color: Colors.white,
               fontSize: 20,
@@ -548,31 +634,28 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Select the skills and expertise you can share with others',
+            'Select the skills and expertise you can share',
             style: TextStyle(color: Colors.white.withOpacity(0.6)),
           ),
           const SizedBox(height: 24),
           
           ...SkillsCategories.categories.entries.map((entry) {
-            return _buildSkillCategory(
-              entry.key,
-              entry.value,
-              _selectedSkillsOffering,
-            );
+            return _buildSkillCategory(entry.key, entry.value);
           }),
         ],
       ),
     );
   }
 
-  Widget _buildSkillsSeekingPage() {
+  // STEP 3: Experience Level
+  Widget _buildStep3Level() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Skills You Are Seeking',
+            'Your Experience Level',
             style: TextStyle(
               color: Colors.white,
               fontSize: 20,
@@ -581,16 +664,42 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Select the skills you want to learn or improve',
+            'Select your professional experience level',
             style: TextStyle(color: Colors.white.withOpacity(0.6)),
           ),
           const SizedBox(height: 24),
           
-          ...SkillsCategories.categories.entries.map((entry) {
-            return _buildSkillCategory(
-              entry.key,
-              entry.value,
-              _selectedSkillsSeeking,
+          ..._levels.map((level) {
+            final isSelected = _selectedLevel == level;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: isSelected 
+                    ? AppColors.electricOrange.withOpacity(0.2)
+                    : const Color(0xFF1d1d1e),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected 
+                      ? AppColors.electricOrange 
+                      : AppColors.deepPurple.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              child: RadioListTile<String>(
+                title: Text(
+                  level,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                value: level,
+                groupValue: _selectedLevel,
+                activeColor: AppColors.electricOrange,
+                onChanged: (value) {
+                  setState(() => _selectedLevel = value);
+                },
+              ),
             );
           }),
         ],
@@ -598,14 +707,15 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
-  Widget _buildPurposesPage() {
+  // STEP 4: What brings you here (Purpose)
+  Widget _buildStep4Purpose() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'What brought you here?',
+            'What brings you here?',
             style: TextStyle(
               color: Colors.white,
               fontSize: 20,
@@ -658,13 +768,232 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               ),
             );
           }),
-          const SizedBox(height: 80), // Space for button
         ],
       ),
     );
   }
 
-  Widget _buildSkillCategory(String category, List<String> skills, Set<String> selectedSkills) {
+  // STEP 5: Gender
+  Widget _buildStep5Gender() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your Gender',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Select your gender identity',
+            style: TextStyle(color: Colors.white.withOpacity(0.6)),
+          ),
+          const SizedBox(height: 24),
+          
+          ..._genders.map((gender) {
+            final isSelected = _selectedGender == gender;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: isSelected 
+                    ? AppColors.electricOrange.withOpacity(0.2)
+                    : const Color(0xFF1d1d1e),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected 
+                      ? AppColors.electricOrange 
+                      : AppColors.deepPurple.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              child: RadioListTile<String>(
+                title: Text(
+                  gender,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                value: gender,
+                groupValue: _selectedGender,
+                activeColor: AppColors.electricOrange,
+                onChanged: (value) {
+                  setState(() => _selectedGender = value);
+                },
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // STEP 6: Mentor vs Mentee (or Both)
+  Widget _buildStep6MentorMentee() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your Role',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Are you looking to mentor, be mentored, or both?',
+            style: TextStyle(color: Colors.white.withOpacity(0.6)),
+          ),
+          const SizedBox(height: 24),
+          
+          ...['Mentor', 'Mentee', 'Both'].map((role) {
+            final isSelected = _mentorMenteeRole == role;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: isSelected 
+                    ? AppColors.electricOrange.withOpacity(0.2)
+                    : const Color(0xFF1d1d1e),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected 
+                      ? AppColors.electricOrange 
+                      : AppColors.deepPurple.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              child: RadioListTile<String>(
+                title: Text(
+                  role,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 18,
+                  ),
+                ),
+                subtitle: Text(
+                  role == 'Mentor' 
+                      ? 'Share your knowledge and experience'
+                      : role == 'Mentee'
+                          ? 'Learn from experienced professionals'
+                          : 'Open to both mentoring and being mentored',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 13,
+                  ),
+                ),
+                value: role,
+                groupValue: _mentorMenteeRole,
+                activeColor: AppColors.electricOrange,
+                onChanged: (value) {
+                  setState(() => _mentorMenteeRole = value!);
+                },
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // STEP 7: Location
+  Widget _buildStep7Location() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your Location',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Help others find you based on location',
+            style: TextStyle(color: Colors.white.withOpacity(0.6)),
+          ),
+          const SizedBox(height: 24),
+          
+          // City
+          _buildTextField(
+            controller: _cityController,
+            label: 'City',
+            icon: Icons.location_city,
+            validator: Validators.required,
+          ),
+          const SizedBox(height: 16),
+          
+          // State
+          _buildTextField(
+            controller: _stateController,
+            label: 'State',
+            icon: Icons.map,
+            validator: Validators.required,
+          ),
+          const SizedBox(height: 24),
+          
+          // Use Current Location button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isLoading ? null : _getCurrentLocation,
+              icon: const Icon(Icons.my_location),
+              label: const Text('Use Current Location'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.electricOrange,
+                side: const BorderSide(color: AppColors.electricOrange, width: 2),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          if (_latitude != null && _longitude != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.success),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Location detected: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkillCategory(String category, List<String> skills) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -683,20 +1012,20 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         iconColor: AppColors.electricOrange,
         collapsedIconColor: Colors.white,
         children: skills.map((skill) {
-          final isSelected = selectedSkills.contains(skill);
+          final isSelected = _selectedSkills.contains(skill);
           return CheckboxListTile(
             title: Text(
               skill,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: const TextStyle(color: Colors.white),
             ),
             value: isSelected,
             activeColor: AppColors.electricOrange,
             onChanged: (bool? value) {
               setState(() {
                 if (value == true) {
-                  selectedSkills.add(skill);
+                  _selectedSkills.add(skill);
                 } else {
-                  selectedSkills.remove(skill);
+                  _selectedSkills.remove(skill);
                 }
               });
             },
@@ -711,76 +1040,40 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    bool obscureText = false,
     String? Function(String?)? validator,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      obscureText: obscureText,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-        prefixIcon: Icon(icon, color: Colors.white),
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+        prefixIcon: Icon(icon, color: AppColors.electricOrange),
+        suffixIcon: suffixIcon,
         filled: true,
-        fillColor: const Color(0xFF1d1d1e),
+        fillColor: Colors.black.withOpacity(0.3),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.electricOrange, width: 2),
+          borderSide: BorderSide(color: AppColors.deepPurple.withOpacity(0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.electricOrange, width: 2),
+          borderSide: BorderSide(color: AppColors.deepPurple.withOpacity(0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.electricOrange, width: 2),
         ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
       ),
       validator: validator,
-    );
-  }
-
-  Widget _buildDropdown({
-    required String? value,
-    required List<String> items,
-    required String label,
-    required IconData icon,
-    required void Function(String?) onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1d1d1e),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.electricOrange, width: 2),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white),
-          const SizedBox(width: 16),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: value,
-                hint: Text(
-                  label,
-                  style: TextStyle(color: Colors.white.withOpacity(0.6)),
-                ),
-                isExpanded: true,
-                dropdownColor: const Color(0xFF2A2A2A),
-                style: const TextStyle(color: Colors.white),
-                items: items.map((item) {
-                  return DropdownMenuItem(
-                    value: item,
-                    child: Text(item),
-                  );
-                }).toList(),
-                onChanged: onChanged,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
