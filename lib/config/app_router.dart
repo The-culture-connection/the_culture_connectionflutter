@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/registration_screen.dart';
 import '../screens/main_navigation_screen.dart';
@@ -18,28 +17,11 @@ import '../screens/events/events_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: '/',
-    redirect: (context, state) {
-      final user = FirebaseAuth.instance.currentUser;
-      final isAuthRoute = state.matchedLocation == '/signin' || 
-                         state.matchedLocation == '/register';
-      
-      // If not logged in and not on auth route, redirect to signin
-      if (user == null && !isAuthRoute) {
-        return '/signin';
-      }
-      
-      // If logged in and on auth route, redirect to discover
-      if (user != null && isAuthRoute) {
-        return '/discover';
-      }
-      
-      return null; // No redirect
-    },
+    initialLocation: '/signin',
     routes: [
       GoRoute(
         path: '/',
-        redirect: (context, state) => '/discover',
+        redirect: (context, state) => '/signin',
       ),
       GoRoute(
         path: '/signin',
@@ -70,38 +52,11 @@ class AppRouter {
         path: '/forums',
         name: 'forums',
         builder: (context, state) => const ForumsScreen(),
-        routes: [
-          GoRoute(
-            path: ':postId',
-            name: 'forum-post',
-            builder: (context, state) {
-              final postId = state.pathParameters['postId']!;
-              return Scaffold(
-                appBar: AppBar(title: const Text('Forum Post')),
-                body: Center(child: Text('Forum Post: $postId')),
-              );
-            },
-          ),
-        ],
       ),
       GoRoute(
         path: '/chat',
         name: 'chat',
         builder: (context, state) => const MainNavigationScreen(initialIndex: 1),
-        routes: [
-          GoRoute(
-            path: ':threadId',
-            name: 'chat-detail',
-            builder: (context, state) {
-              final threadId = state.pathParameters['threadId']!;
-              final otherUserName = state.uri.queryParameters['name'] ?? 'Chat';
-              return ChatDetailScreen(
-                chatRoomId: threadId,
-                otherUserName: otherUserName,
-              );
-            },
-          ),
-        ],
       ),
       GoRoute(
         path: '/matches',
@@ -109,33 +64,14 @@ class AppRouter {
         builder: (context, state) => const TodaysMatchesScreen(),
       ),
       GoRoute(
-        path: '/profile/:uid',
+        path: '/profile',
         name: 'profile',
-        builder: (context, state) {
-          final uid = state.pathParameters['uid']!;
-          final currentUser = FirebaseAuth.instance.currentUser;
-          
-          // If viewing own profile, show profile screen
-          if (currentUser?.uid == uid) {
-            return const MainNavigationScreen(initialIndex: 3);
-          }
-          
-          // Otherwise show public profile view
-          return ProfilePreviewScreen(userId: uid);
-        },
+        builder: (context, state) => const MainNavigationScreen(initialIndex: 3),
       ),
       GoRoute(
         path: '/events',
         name: 'events',
         builder: (context, state) => const EventsScreen(),
-      ),
-      GoRoute(
-        path: '/settings',
-        name: 'settings',
-        builder: (context, state) => Scaffold(
-          appBar: AppBar(title: const Text('Settings')),
-          body: const Center(child: Text('Settings - Coming Soon')),
-        ),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(
@@ -149,12 +85,10 @@ class AppRouter {
               '404 - Page Not Found',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
-            const SizedBox(height: 8),
-            Text(state.uri.toString()),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => context.go('/discover'),
-              child: const Text('Go Home'),
+              onPressed: () => context.go('/signin'),
+              child: const Text('Go to Login'),
             ),
           ],
         ),
