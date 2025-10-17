@@ -37,6 +37,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   File? _profileImage;
   final Set<String> _selectedSkillsOffering = {};
   final Set<String> _selectedSkillsSeeking = {};
+  final Set<String> _expandedCategoriesOffering = {}; // Track expanded categories for Skills Offering
+  final Set<String> _expandedCategoriesSeeking = {};  // Track expanded categories for Skills Seeking
   String? _selectedLevel;
   final Set<String> _selectedPurposes = {};
   String? _selectedGender;
@@ -643,7 +645,12 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           const SizedBox(height: 24),
           
           ...SkillsCategories.categories.entries.map((entry) {
-            return _buildSkillCategory(entry.key, entry.value, _selectedSkillsOffering);
+            return _buildSkillCategory(
+              entry.key,
+              entry.value,
+              _selectedSkillsOffering,
+              _expandedCategoriesOffering,
+            );
           }),
         ],
       ),
@@ -673,7 +680,12 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           const SizedBox(height: 24),
           
           ...SkillsCategories.categories.entries.map((entry) {
-            return _buildSkillCategory(entry.key, entry.value, _selectedSkillsSeeking);
+            return _buildSkillCategory(
+              entry.key,
+              entry.value,
+              _selectedSkillsSeeking,
+              _expandedCategoriesSeeking,
+            );
           }),
         ],
       ),
@@ -954,7 +966,14 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     );
   }
 
-  Widget _buildSkillCategory(String category, List<String> skills, Set<String> selectedSkills) {
+  Widget _buildSkillCategory(
+    String category,
+    List<String> skills,
+    Set<String> selectedSkills,
+    Set<String> expandedCategories,
+  ) {
+    final isExpanded = expandedCategories.contains(category);
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -962,36 +981,68 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.electricOrange.withOpacity(0.3)),
       ),
-      child: ExpansionTile(
-        title: Text(
-          category,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        iconColor: AppColors.electricOrange,
-        collapsedIconColor: Colors.white,
-        children: skills.map((skill) {
-          final isSelected = selectedSkills.contains(skill);
-          return CheckboxListTile(
-            title: Text(
-              skill,
-              style: const TextStyle(color: Colors.white),
-            ),
-            value: isSelected,
-            activeColor: AppColors.electricOrange,
-            onChanged: (bool? value) {
+      child: Column(
+        children: [
+          // Header (clickable to expand/collapse)
+          InkWell(
+            onTap: () {
               setState(() {
-                if (value == true) {
-                  selectedSkills.add(skill);
+                if (isExpanded) {
+                  expandedCategories.remove(category);
                 } else {
-                  selectedSkills.remove(skill);
+                  expandedCategories.add(category);
                 }
               });
             },
-          );
-        }).toList(),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      category,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: AppColors.electricOrange,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Skills list (shown when expanded)
+          if (isExpanded)
+            ...skills.map((skill) {
+              final isSelected = selectedSkills.contains(skill);
+              return CheckboxListTile(
+                title: Text(
+                  skill,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
+                value: isSelected,
+                activeColor: AppColors.electricOrange,
+                checkColor: Colors.white,
+                onChanged: (bool? value) {
+                  setState(() {
+                    if (value == true) {
+                      selectedSkills.add(skill);
+                    } else {
+                      selectedSkills.remove(skill);
+                    }
+                  });
+                },
+              );
+            }).toList(),
+        ],
       ),
     );
   }
