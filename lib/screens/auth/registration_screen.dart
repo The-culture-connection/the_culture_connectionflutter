@@ -35,11 +35,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
   // State
   File? _profileImage;
-  final Set<String> _selectedSkills = {};
+  final Set<String> _selectedSkillsOffering = {};
+  final Set<String> _selectedSkillsSeeking = {};
   String? _selectedLevel;
   final Set<String> _selectedPurposes = {};
   String? _selectedGender;
-  String _mentorMenteeRole = 'Both'; // 'Mentor', 'Mentee', or 'Both'
   double? _latitude;
   double? _longitude;
   bool _isLoading = false;
@@ -180,10 +180,20 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       return;
     }
 
-    if (_selectedSkills.isEmpty) {
+    if (_selectedSkillsOffering.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select at least one skill'),
+          content: Text('Please select at least one skill you can offer'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedSkillsSeeking.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one skill you are seeking'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -261,8 +271,8 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         age: 0, // Not collected in this flow
         gender: _selectedGender!,
         experienceLevel: _selectedLevel!,
-        skillsOffering: _selectedSkills.toList(),
-        skillsSeeking: [], // Not collected separately in this flow
+        skillsOffering: _selectedSkillsOffering.toList(),
+        skillsSeeking: _selectedSkillsSeeking.toList(),
         purposes: _selectedPurposes.toList(),
         photoURL: photoURL,
         totalPoints: 0,
@@ -412,11 +422,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                     },
                     children: [
                       _buildStep1BasicInfo(),
-                      _buildStep2Skills(),
-                      _buildStep3Level(),
-                      _buildStep4Purpose(),
-                      _buildStep5Gender(),
-                      _buildStep6MentorMentee(),
+                      _buildStep2SkillsOffering(),
+                      _buildStep3SkillsSeeking(),
+                      _buildStep4Level(),
+                      _buildStep5Purpose(),
+                      _buildStep6Gender(),
                       _buildStep7Location(),
                     ],
                   ),
