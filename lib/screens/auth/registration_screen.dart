@@ -36,10 +36,17 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   File? _profileImage;
   final Set<String> _selectedSkillsOffering = {};
   final Set<String> _selectedSkillsSeeking = {};
+  final Set<String> _selectedPurposes = {};
   bool _isLoading = false;
   bool _obscurePassword = true;
 
   final List<String> _genders = ['Male', 'Female', 'Nonbinary', 'Other'];
+  final List<String> _purposes = [
+    'Looking to Hire',
+    'Starting a business',
+    'Looking to get hired',
+    'Looking to invest in a start up',
+  ];
 
   @override
   void dispose() {
@@ -128,6 +135,16 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       return;
     }
 
+    if (_selectedPurposes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one purpose'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -156,6 +173,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         experienceLevel: _selectedExperienceLevel!,
         skillsOffering: _selectedSkillsOffering.toList(),
         skillsSeeking: _selectedSkillsSeeking.toList(),
+        purposes: _selectedPurposes.toList(),
         photoURL: photoURL,
         totalPoints: 0,
         blockedUsers: {},
@@ -202,7 +220,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
   }
 
   void _nextPage() {
-    if (_currentPage < 2) {
+    if (_currentPage < 3) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -267,7 +285,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                       // Progress indicator
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(3, (index) {
+                        children: List.generate(4, (index) {
                           return Container(
                             margin: const EdgeInsets.symmetric(horizontal: 4),
                             width: 40,
@@ -297,6 +315,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                       _buildBasicInfoPage(),
                       _buildSkillsOfferingPage(),
                       _buildSkillsSeekingPage(),
+                      _buildPurposesPage(),
                     ],
                   ),
                 ),
@@ -326,7 +345,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                         child: ElevatedButton(
                           onPressed: _isLoading
                               ? null
-                              : (_currentPage < 2 ? _nextPage : _register),
+                              : (_currentPage < 3 ? _nextPage : _register),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.black.withOpacity(0.8),
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -348,7 +367,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                   ),
                                 )
                               : Text(
-                                  _currentPage < 2 ? 'NEXT' : 'CREATE PROFILE',
+                                  _currentPage < 3 ? 'NEXT' : 'CREATE PROFILE',
                                   style: const TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 16,
@@ -574,6 +593,72 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               _selectedSkillsSeeking,
             );
           }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPurposesPage() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'What brought you here?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Select all that apply',
+            style: TextStyle(color: Colors.white.withOpacity(0.6)),
+          ),
+          const SizedBox(height: 24),
+          
+          ..._purposes.map((purpose) {
+            final isSelected = _selectedPurposes.contains(purpose);
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: isSelected 
+                    ? AppColors.electricOrange.withOpacity(0.2)
+                    : const Color(0xFF1d1d1e),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected 
+                      ? AppColors.electricOrange 
+                      : AppColors.deepPurple.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              child: CheckboxListTile(
+                title: Text(
+                  purpose,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                value: isSelected,
+                activeColor: AppColors.electricOrange,
+                checkColor: Colors.white,
+                onChanged: (bool? value) {
+                  setState(() {
+                    if (value == true) {
+                      _selectedPurposes.add(purpose);
+                    } else {
+                      _selectedPurposes.remove(purpose);
+                    }
+                  });
+                },
+              ),
+            );
+          }),
+          const SizedBox(height: 80), // Space for button
         ],
       ),
     );

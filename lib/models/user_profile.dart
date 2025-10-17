@@ -9,6 +9,7 @@ class UserProfile {
   final String experienceLevel;
   final List<String> skillsOffering;
   final List<String> skillsSeeking;
+  final List<String> purposes; // "What brought you here"
   final String? photoURL;
   final String? fcmToken;
   final int totalPoints;
@@ -34,6 +35,7 @@ class UserProfile {
     required this.experienceLevel,
     required this.skillsOffering,
     required this.skillsSeeking,
+    this.purposes = const [],
     this.photoURL,
     this.fcmToken,
     this.totalPoints = 0,
@@ -59,6 +61,7 @@ class UserProfile {
       experienceLevel: data['Experience Level'] ?? '',
       skillsOffering: List<String>.from(data['Skills Offering'] ?? []),
       skillsSeeking: List<String>.from(data['Skills Seeking'] ?? []),
+      purposes: List<String>.from(data['Purposes'] ?? []),
       photoURL: data['photoURL'],
       fcmToken: data['fcmToken'],
       totalPoints: data['totalPoints'] ?? 0,
@@ -84,6 +87,7 @@ class UserProfile {
       'Experience Level': experienceLevel,
       'Skills Offering': skillsOffering,
       'Skills Seeking': skillsSeeking,
+      'Purposes': purposes,
       'photoURL': photoURL,
       'fcmToken': fcmToken,
       'totalPoints': totalPoints,
@@ -107,6 +111,7 @@ class UserProfile {
     String? experienceLevel,
     List<String>? skillsOffering,
     List<String>? skillsSeeking,
+    List<String>? purposes,
     String? photoURL,
     String? fcmToken,
     int? totalPoints,
@@ -127,6 +132,7 @@ class UserProfile {
       experienceLevel: experienceLevel ?? this.experienceLevel,
       skillsOffering: skillsOffering ?? this.skillsOffering,
       skillsSeeking: skillsSeeking ?? this.skillsSeeking,
+      purposes: purposes ?? this.purposes,
       photoURL: photoURL ?? this.photoURL,
       fcmToken: fcmToken ?? this.fcmToken,
       totalPoints: totalPoints ?? this.totalPoints,
