@@ -383,7 +383,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Progress indicator
+                      // Progress indicator (7 steps total)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(7, (index) {
@@ -471,7 +471,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                                   ),
                                 )
                               : Text(
-                                  _currentPage < 5 ? 'NEXT' : 'CREATE PROFILE',
+                                  _currentPage < 6 ? 'NEXT' : 'CREATE PROFILE',
                                   style: const TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 16,
