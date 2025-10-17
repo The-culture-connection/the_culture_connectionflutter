@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:timeago/timeago.dart' as timeago;
 import '../../constants/app_colors.dart';
-import '../../providers/auth_provider.dart';
-import '../../models/post.dart';
-import '../../models/user_profile.dart';
-import '../../services/firestore_service.dart';
-import 'create_post_screen.dart';
-import '../events/events_screen.dart';
+import '../search/user_search_screen.dart';
 import '../business/black_business_screen.dart';
 import '../forums/forums_screen.dart';
 
@@ -16,348 +10,163 @@ class DiscoverScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userId = ref.watch(currentUserIdProvider);
-    final firestoreService = ref.watch(firestoreServiceProvider);
-
     return Scaffold(
+      backgroundColor: const Color(0xFF1d1d1e),
       appBar: AppBar(
-        title: const Text('Discover'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CreatePostScreen()),
-              );
-            },
+        title: const Text(
+          'DISCOVER',
+          style: TextStyle(
+            fontFamily: 'InterTight',
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
           ),
-        ],
+        ),
+        backgroundColor: const Color(0xFF1d1d1e),
+        elevation: 0,
       ),
-      body: Column(
-        children: [
-          // Quick access menu
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: const AssetImage('assets/Connectionsimage.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              Colors.black.withOpacity(0.6),
+              BlendMode.darken,
+            ),
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(
-                  child: _buildQuickAccessButton(
-                    context,
-                    'Events',
-                    Icons.event,
-                    () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const EventsScreen()),
-                      );
-                    },
-                  ),
+                // SEARCH USERS
+                _buildDiscoverCard(
+                  context,
+                  title: 'SEARCH USERS',
+                  subtitle: 'Find people to connect with',
+                  icon: Icons.person_search,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const UserSearchScreen()),
+                    );
+                  },
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildQuickAccessButton(
-                    context,
-                    'Businesses',
-                    Icons.business,
-                    () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const BlackBusinessScreen()),
-                      );
-                    },
-                  ),
+                const SizedBox(height: 20),
+                
+                // GREEN BOOK
+                _buildDiscoverCard(
+                  context,
+                  title: 'GREEN BOOK',
+                  subtitle: 'Business directory',
+                  icon: Icons.business,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const BlackBusinessScreen()),
+                    );
+                  },
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildQuickAccessButton(
-                    context,
-                    'Forums',
-                    Icons.forum,
-                    () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ForumsScreen()),
-                      );
-                    },
-                  ),
+                const SizedBox(height: 20),
+                
+                // FORUMS
+                _buildDiscoverCard(
+                  context,
+                  title: 'FORUMS',
+                  subtitle: 'Community discussions',
+                  icon: Icons.forum,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ForumsScreen()),
+                    );
+                  },
                 ),
               ],
             ),
           ),
-          
-          // News feed
-          Expanded(
-            child: StreamBuilder<List<Post>>(
-              stream: firestoreService.streamPosts(limit: 50),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: AppColors.electricOrange),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-
-                final posts = snapshot.data ?? [];
-
-                if (posts.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.newspaper,
-                          size: 80,
-                          color: Colors.white.withOpacity(0.3),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No posts yet',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.white.withOpacity(0.6),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const CreatePostScreen()),
-                            );
-                          },
-                          icon: const Icon(Icons.add),
-                          label: const Text('Create First Post'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.electricOrange,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    // Refresh is handled by the stream
-                  },
-                  child: ListView.builder(
-                    itemCount: posts.length,
-                    itemBuilder: (context, index) {
-                      return _PostCard(post: posts[index]);
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CreatePostScreen()),
-          );
-        },
-        backgroundColor: AppColors.electricOrange,
-        child: const Icon(Icons.add),
+        ),
       ),
     );
   }
 
-  Widget _buildQuickAccessButton(
-    BuildContext context,
-    String label,
-    IconData icon,
-    VoidCallback onTap,
-  ) {
+  Widget _buildDiscoverCard(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.deepPurple, AppColors.purple700],
+          color: const Color(0xFF2a2a2e).withOpacity(0.85),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.electricOrange.withOpacity(0.5),
+            width: 2,
           ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: Colors.white, size: 24),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.electricOrange.withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _PostCard extends ConsumerWidget {
-  final Post post;
-
-  const _PostCard({required this.post});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final firestoreService = ref.watch(firestoreServiceProvider);
-
-    return FutureBuilder<UserProfile?>(
-      future: firestoreService.getUserProfile(post.userId),
-      builder: (context, snapshot) {
-        final author = snapshot.data;
-
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: const Color(0xFF2A2A2A),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Author info
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppColors.deepPurple,
-                      backgroundImage: author?.photoURL != null
-                          ? NetworkImage(author!.photoURL!)
-                          : null,
-                      child: author?.photoURL == null
-                          ? const Icon(Icons.person, color: Colors.white, size: 20)
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            author?.fullName ?? 'Loading...',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            timeago.format(post.timestamp),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white.withOpacity(0.6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Post type badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.electricOrange,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        post.type.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.electricOrange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.electricOrange,
+                  width: 2,
                 ),
-                const SizedBox(height: 16),
-                
-                // Post title
-                Text(
-                  post.title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+              ),
+              child: Icon(
+                icon,
+                color: AppColors.electricOrange,
+                size: 32,
+              ),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppColors.electricOrange,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'InterTight',
+                      letterSpacing: 1.2,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                
-                // Post description
-                Text(
-                  post.description,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
-                ),
-                
-                // Post image
-                if (post.postPhotoURL != null) ...[
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      post.postPhotoURL!,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 14,
                     ),
                   ),
                 ],
-                
-                const SizedBox(height: 16),
-                
-                // Actions
-                Row(
-                  children: [
-                    _buildActionButton(
-                      Icons.favorite_border,
-                      '${post.likeCount}',
-                      () {},
-                    ),
-                    const SizedBox(width: 16),
-                    _buildActionButton(
-                      Icons.comment_outlined,
-                      '${post.commentCount}',
-                      () {},
-                    ),
-                    const SizedBox(width: 16),
-                    _buildActionButton(
-                      Icons.share_outlined,
-                      '${post.shareCount}',
-                      () {},
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildActionButton(IconData icon, String count, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white, size: 20),
-          const SizedBox(width: 4),
-          Text(
-            count,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 14,
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: AppColors.electricOrange,
+              size: 24,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
