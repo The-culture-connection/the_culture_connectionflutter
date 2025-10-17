@@ -9,7 +9,7 @@ import 'profile/profile_screen.dart';
 class MainNavigationScreen extends ConsumerStatefulWidget {
   final int initialIndex;
   
-  const MainNavigationScreen({super.key, this.initialIndex = 0});
+  const MainNavigationScreen({super.key, this.initialIndex = 2}); // Default to Discover (index 2)
 
   @override
   ConsumerState<MainNavigationScreen> createState() => _MainNavigationScreenState();
