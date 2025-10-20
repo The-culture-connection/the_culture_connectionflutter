@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_colors.dart';
 import 'connections/connections_screen.dart';
 import 'chat/chat_view.dart';
-import 'discover/discover_screen.dart';
+import 'discover_screen.dart';
 import 'profile/profile_screen.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
