@@ -111,7 +111,7 @@ class UserProfile {
       purposes: List<String>.from(data['Purposes'] ?? data['purposes'] ?? []),
       photoURL: data['photoURL'] ?? '',
       fcmToken: data['fcmToken'],
-      totalPoints: data['totalPoints'] ?? 0,
+      totalPoints: _parseIntFromDynamic(data['totalPoints']),
       blockedUsers: _parseBlockedUsers(data['blockedUsers']),
       connectionPreference: data['Connection Preference'] ?? data['connectionPreference'] ?? 'Mentee',
       matchByIndustry: _parseBoolean(data['matchByIndustry']) ?? false,
@@ -159,38 +159,38 @@ class UserProfile {
       userId: doc.id,
       fullName: data['Full Name'] ?? '',
       fullname: data['Full Name'] ?? '',
-      age: data['Age'] ?? 0,
-      gender: data['Gender'] ?? '',
-      bio: data['Bio'] ?? '',
-      experienceLevel: data['Experience Level'] ?? '',
-      greekOrganization: data['Greek Organization'] ?? '',
-      otherOrganizations: data['Other Organizations'] ?? '',
-      industry: data['Industry'] ?? '',
-      interests: data['Interests and Hobbies'] ?? '',
-      jobTitle: data['Job Title'] ?? '',
-      major: data['Major'] ?? '',
-      personalityTraits: data['Personality Traits'] ?? '',
-      skills: data['Skills'] ?? '',
+      age: _parseIntFromDynamic(data['Age']),
+      gender: _parseStringFromDynamic(data['Gender']),
+      bio: _parseStringFromDynamic(data['Bio']),
+      experienceLevel: _parseStringFromDynamic(data['Experience Level']),
+      greekOrganization: _parseStringFromDynamic(data['Greek Organization']),
+      otherOrganizations: _parseStringFromDynamic(data['Other Organizations']),
+      industry: _parseStringFromDynamic(data['Industry']),
+      interests: _parseStringFromDynamic(data['Interests and Hobbies']),
+      jobTitle: _parseStringFromDynamic(data['Job Title']),
+      major: _parseStringFromDynamic(data['Major']),
+      personalityTraits: _parseStringFromDynamic(data['Personality Traits']),
+      skills: _parseStringFromDynamic(data['Skills']),
       skillsOffering: List<String>.from(data['Skills Offering'] ?? []),
       skillsSeeking: List<String>.from(data['Skills Seeking'] ?? []),
       purposes: List<String>.from(data['Purposes'] ?? []),
       photoURL: data['photoURL'] ?? '',
       fcmToken: data['fcmToken'],
-      totalPoints: data['totalPoints'] ?? 0,
+      totalPoints: _parseIntFromDynamic(data['totalPoints']),
       blockedUsers: _parseBlockedUsers(data['blockedUsers']),
-      connectionPreference: data['Connection Preference'] ?? '',
+      connectionPreference: _parseStringFromDynamic(data['Connection Preference']),
       matchByIndustry: _parseBoolean(data['matchByIndustry']) ?? false,
-      selectedIndustry: data['selectedIndustry'] ?? '',
+      selectedIndustry: _parseStringFromDynamic(data['selectedIndustry']),
       speedMentoring: _parseBoolean(data['Speed Mentoring']) ?? false,
-      minAgeSeeking: data['minageseeking'] ?? 18,
-      maxAgeSeeking: data['maxageseeking'] ?? 50,
-      genderPreferences: data['Gender Preferences'] ?? '',
-      networkinggoal: data['Networking Goal'] ?? '',
-      personalityTrait: data['Personality Trait'] ?? '',
-      jobLevel: data['Experience Level'] ?? '',
-      wantsToImprove: data['Areas of Improvement'] ?? '',
-      email: data['email'] ?? '',
-      location: data['location'] ?? '',
+      minAgeSeeking: _parseIntFromDynamic(data['minageseeking']) != 0 ? _parseIntFromDynamic(data['minageseeking']) : 18,
+      maxAgeSeeking: _parseIntFromDynamic(data['maxageseeking']) != 0 ? _parseIntFromDynamic(data['maxageseeking']) : 50,
+      genderPreferences: _parseStringFromDynamic(data['Gender Preferences']),
+      networkinggoal: _parseStringFromDynamic(data['Networking Goal']),
+      personalityTrait: _parseStringFromDynamic(data['Personality Trait']),
+      jobLevel: _parseStringFromDynamic(data['Experience Level']),
+      wantsToImprove: _parseStringFromDynamic(data['Areas of Improvement']),
+      email: _parseStringFromDynamic(data['email']),
+      location: _parseStringFromDynamic(data['location']),
       latitude: data['latitude']?.toDouble(),
       longitude: data['longitude']?.toDouble(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -242,6 +242,27 @@ class UserProfile {
       return result;
     }
     return {};
+  }
+
+  /// Helper method to parse string from dynamic value (handles both string and list)
+  static String _parseStringFromDynamic(dynamic value) {
+    if (value == null) return '';
+    if (value is String) return value;
+    if (value is List) {
+      return value.map((e) => e.toString()).join(', ');
+    }
+    return value.toString();
+  }
+
+  /// Helper method to parse integer from dynamic value (handles string, int, and other types)
+  static int _parseIntFromDynamic(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    if (value is double) return value.toInt();
+    return 0;
   }
 
   /// Check if user has specific skill offering

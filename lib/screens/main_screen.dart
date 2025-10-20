@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../config/app_router.dart';
 import 'connections_screen.dart';
-import 'messaging_screen.dart';
+import 'chat/chat_view.dart';
 import 'discover_screen.dart';
 import 'edit_profile_screen.dart';
 import 'newsfeed_screen.dart';
@@ -22,7 +22,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     const ConnectionsScreen(),
-    const MessagingScreen(),
+    const ChatView(),
     const DiscoverScreen(),
     const EditProfileScreen(),
   ];

@@ -833,3 +833,227 @@ export const handleUserConnection = onCall(async (request) => {
   }
 });
 
+/**
+ * Send notification for new connection request
+ */
+export const notifyOnNewConnectionRequest = functions.firestore
+  .document("Connects/{connectionId}")
+  .onCreate(async (snap, context) => {
+    const connectionData = snap.data();
+    const toUserId = connectionData.toUserId;
+    
+    try {
+      // Get user's FCM token
+      const userDoc = await db.collection("Profiles").doc(toUserId).get();
+      const userData = userDoc.data();
+      const fcmToken = userData?.fcmToken;
+      
+      if (!fcmToken) {
+        logger.warn(`No FCM token found for user ${toUserId}`);
+        return;
+      }
+      
+      // Get sender's name
+      const senderDoc = await db.collection("Profiles").doc(connectionData.fromUserId).get();
+      const senderData = senderDoc.data();
+      const senderName = senderData?.["Full Name"] || "Someone";
+      
+      const message = {
+        token: fcmToken,
+        notification: {
+          title: "New Connection Request",
+          body: `${senderName} wants to connect with you!`,
+        },
+        data: {
+          type: "connection_request",
+          connectionId: context.params.connectionId,
+          fromUserId: connectionData.fromUserId,
+        },
+      };
+      
+      await admin.messaging().send(message);
+      logger.info(`Connection request notification sent to ${toUserId}`);
+    } catch (error) {
+      logger.error("Error sending connection request notification:", error);
+    }
+  });
+
+/**
+ * Send notification for new match
+ */
+export const notifyOnNewMatch = functions.firestore
+  .document("Matches/{matchId}")
+  .onCreate(async (snap, context) => {
+    const matchData = snap.data();
+    const userId1 = matchData.userId1;
+    const userId2 = matchData.userId2;
+    
+    try {
+      // Send notification to both users
+      const notifications = await Promise.all([
+        sendMatchNotification(userId1, userId2),
+        sendMatchNotification(userId2, userId1),
+      ]);
+      
+      logger.info(`Match notifications sent: ${notifications.filter(Boolean).length}/2`);
+    } catch (error) {
+      logger.error("Error sending match notifications:", error);
+    }
+  });
+
+/**
+ * Send notification for new message
+ */
+export const notifyOnNewMessage = functions.firestore
+  .document("ChatRooms/{chatRoomId}/Messages/{messageId}")
+  .onCreate(async (snap, context) => {
+    const messageData = snap.data();
+    const senderId = messageData.senderId;
+    const chatRoomId = context.params.chatRoomId;
+    
+    try {
+      // Get chat room participants
+      const chatRoomDoc = await db.collection("ChatRooms").doc(chatRoomId).get();
+      const chatRoomData = chatRoomDoc.data();
+      const participants = chatRoomData?.participants || [];
+      
+      // Find the recipient (not the sender)
+      const recipientId = participants.find((id: string) => id !== senderId);
+      if (!recipientId) {
+        logger.warn(`No recipient found for chat room ${chatRoomId}`);
+        return;
+      }
+      
+      // Get recipient's FCM token
+      const recipientDoc = await db.collection("Profiles").doc(recipientId).get();
+      const recipientData = recipientDoc.data();
+      const fcmToken = recipientData?.fcmToken;
+      
+      if (!fcmToken) {
+        logger.warn(`No FCM token found for recipient ${recipientId}`);
+        return;
+      }
+      
+      // Get sender's name
+      const senderDoc = await db.collection("Profiles").doc(senderId).get();
+      const senderData = senderDoc.data();
+      const senderName = senderData?.["Full Name"] || "Someone";
+      
+      const message = {
+        token: fcmToken,
+        notification: {
+          title: senderName,
+          body: messageData.text,
+        },
+        data: {
+          type: "message",
+          chatRoomId: chatRoomId,
+          senderId: senderId,
+        },
+      };
+      
+      await admin.messaging().send(message);
+      logger.info(`Message notification sent to ${recipientId}`);
+    } catch (error) {
+      logger.error("Error sending message notification:", error);
+    }
+  });
+
+/**
+ * Send notification for new date proposal
+ */
+export const notifyOnNewDateProposal = functions.firestore
+  .document("ChatRooms/{chatRoomId}/DateProposals/{proposalId}")
+  .onCreate(async (snap, context) => {
+    const proposalData = snap.data();
+    const proposerId = proposalData.proposerId;
+    const chatRoomId = context.params.chatRoomId;
+    
+    try {
+      // Get chat room participants
+      const chatRoomDoc = await db.collection("ChatRooms").doc(chatRoomId).get();
+      const chatRoomData = chatRoomDoc.data();
+      const participants = chatRoomData?.participants || [];
+      
+      // Find the recipient (not the proposer)
+      const recipientId = participants.find((id: string) => id !== proposerId);
+      if (!recipientId) {
+        logger.warn(`No recipient found for chat room ${chatRoomId}`);
+        return;
+      }
+      
+      // Get recipient's FCM token
+      const recipientDoc = await db.collection("Profiles").doc(recipientId).get();
+      const recipientData = recipientDoc.data();
+      const fcmToken = recipientData?.fcmToken;
+      
+      if (!fcmToken) {
+        logger.warn(`No FCM token found for recipient ${recipientId}`);
+        return;
+      }
+      
+      // Get proposer's name
+      const proposerDoc = await db.collection("Profiles").doc(proposerId).get();
+      const proposerData = proposerDoc.data();
+      const proposerName = proposerData?.["Full Name"] || "Someone";
+      
+      const message = {
+        token: fcmToken,
+        notification: {
+          title: "New Date Proposal",
+          body: `${proposerName} proposed a date: ${proposalData.details}`,
+        },
+        data: {
+          type: "date_proposal",
+          chatRoomId: chatRoomId,
+          proposalId: context.params.proposalId,
+          proposerId: proposerId,
+        },
+      };
+      
+      await admin.messaging().send(message);
+      logger.info(`Date proposal notification sent to ${recipientId}`);
+    } catch (error) {
+      logger.error("Error sending date proposal notification:", error);
+    }
+  });
+
+// Helper function to send match notification
+async function sendMatchNotification(userId: string, matchedUserId: string): Promise<boolean> {
+  try {
+    // Get user's FCM token
+    const userDoc = await db.collection("Profiles").doc(userId).get();
+    const userData = userDoc.data();
+    const fcmToken = userData?.fcmToken;
+    
+    if (!fcmToken) {
+      logger.warn(`No FCM token found for user ${userId}`);
+      return false;
+    }
+    
+    // Get matched user's name
+    const matchedUserDoc = await db.collection("Profiles").doc(matchedUserId).get();
+    const matchedUserData = matchedUserDoc.data();
+    const matchedUserName = matchedUserData?.["Full Name"] || "Someone";
+    
+    const message = {
+      token: fcmToken,
+      notification: {
+        title: "New Match!",
+        body: `You have a new match with ${matchedUserName}!`,
+      },
+      data: {
+        type: "match",
+        matchedUserId: matchedUserId,
+      },
+    };
+    
+    await admin.messaging().send(message);
+    logger.info(`Match notification sent to ${userId}`);
+    return true;
+  } catch (error) {
+    logger.error(`Error sending match notification to ${userId}:`, error);
+    return false;
+  }
+}
+

@@ -182,8 +182,7 @@ class _ChatRoomTile extends ConsumerWidget {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => ChatDetailScreen(
-                  chatRoomId: chatRoom.id,
-                  otherUser: otherUser,
+                  chatRoom: chatRoom,
                 ),
               ),
             );

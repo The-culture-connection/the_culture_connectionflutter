@@ -83,10 +83,12 @@ class _MessagingScreenState extends State<MessagingScreen> {
           final chatRoom = ChatRoom(
             id: doc.id,
             participants: participants.cast<String>(),
-            createdAt: (data["createdAt"] as Timestamp?)?.toDate() ?? DateTime.now(),
             lastMessage: data["lastMessage"] as String? ?? "No messages yet",
-            lastMessageTimestamp: (data["lastMessageTimestamp"] as Timestamp?)?.toDate(),
+            lastMessageTimestamp: (data["lastMessageTimestamp"] as Timestamp?)?.toDate() ?? DateTime.now(),
             lastMessageSenderId: data["lastMessageSenderId"] as String? ?? "",
+            otherParticipantName: otherUserName,
+            otherParticipantProfileImage: profileImageURL,
+            createdAt: (data["createdAt"] as Timestamp?)?.toDate(),
             unreadCounts: Map<String, int>.from(data["unreadCounts"] ?? {}),
           );
 
@@ -261,11 +263,18 @@ class _MessagingScreenState extends State<MessagingScreen> {
                 
                 // Connection Requests Banner
                 Container(
-                  margin: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.fromLTRB(20, 10, 20, 20),
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   decoration: BoxDecoration(
                     color: const Color(0xFF2A2A2A),
                     borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
@@ -376,9 +385,7 @@ class _MessagingScreenState extends State<MessagingScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  chatRoom.lastMessageTimestamp != null 
-                    ? _formatTimestamp(Timestamp.fromDate(chatRoom.lastMessageTimestamp!))
-                    : '',
+                  _formatTimestamp(Timestamp.fromDate(chatRoom.lastMessageTimestamp)),
                   style: const TextStyle(
                     color: Colors.grey,
                     fontSize: 12,

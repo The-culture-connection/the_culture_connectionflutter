@@ -161,6 +161,10 @@ class FirestoreService {
     final chatRoom = ChatRoom(
       id: '',
       participants: [user1Id, user2Id],
+      lastMessage: '',
+      lastMessageTimestamp: DateTime.now(),
+      lastMessageSenderId: '',
+      otherParticipantName: 'Unknown',
       createdAt: DateTime.now(),
     );
     
@@ -179,10 +183,7 @@ class FirestoreService {
           
           // Sort by lastMessageTimestamp in Dart instead of Firestore
           chatRooms.sort((a, b) {
-            if (a.lastMessageTimestamp == null && b.lastMessageTimestamp == null) return 0;
-            if (a.lastMessageTimestamp == null) return 1;
-            if (b.lastMessageTimestamp == null) return -1;
-            return b.lastMessageTimestamp!.compareTo(a.lastMessageTimestamp!);
+            return b.lastMessageTimestamp.compareTo(a.lastMessageTimestamp);
           });
           
           return chatRooms;

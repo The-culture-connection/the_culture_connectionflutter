@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_colors.dart';
 import 'connections/connections_screen.dart';
-import 'chat/chat_list_screen.dart';
+import 'chat/chat_view.dart';
 import 'discover/discover_screen.dart';
 import 'profile/profile_screen.dart';
 
@@ -26,7 +26,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
   final List<Widget> _screens = const [
     ConnectionsScreen(),
-    ChatListScreen(),
+    ChatView(),
     DiscoverScreen(),
     ProfileScreen(),
   ];

@@ -443,7 +443,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               return DateProposal(
                 id: doc.id,
                 proposerId: data['proposerId'] ?? '',
-                receiverId: otherParticipantId,
                 details: data['details'] ?? '',
                 date: (data['date'] as Timestamp).toDate(),
                 place: data['place'] ?? '',
