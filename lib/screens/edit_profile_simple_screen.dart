@@ -212,6 +212,115 @@ class _EditProfileSimpleScreenState extends State<EditProfileSimpleScreen> {
       ),
     );
   }
+
+  Future<void> _signOut() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1d1d1e),
+        title: const Text(
+          'Sign Out',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Are you sure you want to sign out?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _authService.signOut();
+              if (mounted) {
+                // Navigate to welcome screen
+                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              }
+            },
+            child: const Text(
+              'Sign Out',
+              style: TextStyle(color: AppColors.electricOrange),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteProfile() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1d1d1e),
+        title: const Text(
+          'Delete Profile',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Are you sure you want to delete your profile? This action cannot be undone and will permanently remove all your data.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteUserProfile();
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteUserProfile() async {
+    try {
+      final userId = _authService.currentUserId;
+      if (userId == null) return;
+
+      setState(() => _isSaving = true);
+
+      // Delete user data from Firestore
+      await _firestoreService.deleteUserProfile(userId);
+
+      // Sign out the user
+      await _authService.signOut();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile deleted successfully'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+
+        // Navigate to welcome screen
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError('Error deleting profile: $e');
+      }
+    } finally {
+      setState(() => _isSaving = false);
+    }
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -407,6 +516,64 @@ class _EditProfileSimpleScreenState extends State<EditProfileSimpleScreen> {
               label: 'Max Age Seeking',
               icon: Icons.cake,
               keyboardType: TextInputType.number,
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Sign Out Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _signOut,
+                icon: const Icon(Icons.logout, color: Colors.white),
+                label: const Text(
+                  'SIGN OUT',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Inter',
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black.withOpacity(0.8),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Delete Profile Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _deleteProfile,
+                icon: const Icon(Icons.delete_forever, color: Colors.white),
+                label: const Text(
+                  'DELETE PROFILE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Inter',
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.withOpacity(0.8),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Colors.red, width: 2),
+                  ),
+                ),
+              ),
             ),
           ],
         ),

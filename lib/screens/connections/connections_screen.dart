@@ -8,6 +8,7 @@ import '../newsfeed_screen.dart';
 import '../search/user_search_screen.dart';
 import '../mentoring/mentoring_connections_screen.dart';
 import '../networking/networking_connections_screen.dart';
+import '../voting_screen.dart';
 
 class ConnectionsScreen extends ConsumerStatefulWidget {
   const ConnectionsScreen({super.key});
@@ -153,6 +154,21 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => const TodaysMatchesScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          // LIVE VOTING Button
+                          _buildActionButton(
+                            text: "LIVE VOTING",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const VotingScreen(),
                                 ),
                               );
                             },

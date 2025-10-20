@@ -52,6 +52,11 @@ class FirestoreService {
     await _usersCollection.doc(userId).update(data);
   }
 
+  /// Delete user profile
+  Future<void> deleteUserProfile(String userId) async {
+    await _usersCollection.doc(userId).delete();
+  }
+
   /// Search users by name
   Stream<List<UserProfile>> searchUsersByName(String query) {
     return _usersCollection
