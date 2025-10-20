@@ -4,7 +4,7 @@ import '../config/app_router.dart';
 import 'connections_screen.dart';
 import 'chat/chat_view.dart';
 import 'discover_screen.dart';
-import 'edit_profile_screen.dart';
+import 'edit_profile_simple_screen.dart';
 import 'newsfeed_screen.dart';
 import 'events/events_screen.dart';
 
@@ -24,7 +24,7 @@ class _MainScreenState extends State<MainScreen> {
     const ConnectionsScreen(),
     const ChatView(),
     const DiscoverScreen(),
-    const EditProfileScreen(),
+    const EditProfileSimpleScreen(),
   ];
 
   @override

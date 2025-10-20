@@ -530,7 +530,7 @@ class UserProfile {
       'Gender Preferences': genderPreferences,
       'Networking Goal': networkinggoal,
       'Personality Trait': personalityTrait,
-      'Experience Level': jobLevel,
+      'Job Level': jobLevel,
       'Areas of Improvement': wantsToImprove,
       'email': email,
       'location': location,

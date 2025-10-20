@@ -4,7 +4,7 @@ import '../constants/app_colors.dart';
 import 'connections/connections_screen.dart';
 import 'chat/chat_view.dart';
 import 'discover_screen.dart';
-import 'profile/profile_screen.dart';
+import 'edit_profile_simple_screen.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -28,7 +28,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     ConnectionsScreen(),
     ChatView(),
     DiscoverScreen(),
-    ProfileScreen(),
+    EditProfileSimpleScreen(),
   ];
 
   @override

@@ -125,8 +125,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 // Profile Photo and Name Section
                 _buildProfileHeader(),
                 
-                // Points Button
-                _buildPointsButton(),
                 
                 // Edit Sections
                 _buildEditSections(),
