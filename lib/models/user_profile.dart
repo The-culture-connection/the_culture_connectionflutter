@@ -126,8 +126,8 @@ class UserProfile {
       wantsToImprove: data['Areas of Improvement'] ?? data['wantsToImprove'] ?? 'Leadership and Management',
       email: data['email'] ?? '',
       location: data['location'] ?? '',
-      latitude: data['latitude']?.toDouble(),
-      longitude: data['longitude']?.toDouble(),
+      latitude: _parseDoubleFromDynamic(data['latitude']),
+      longitude: _parseDoubleFromDynamic(data['longitude']),
       createdAt: data['createdAt'] is Timestamp 
           ? (data['createdAt'] as Timestamp).toDate()
           : data['createdAt'] != null 
@@ -191,8 +191,8 @@ class UserProfile {
       wantsToImprove: _parseStringFromDynamic(data['Areas of Improvement']),
       email: _parseStringFromDynamic(data['email']),
       location: _parseStringFromDynamic(data['location']),
-      latitude: data['latitude']?.toDouble(),
-      longitude: data['longitude']?.toDouble(),
+      latitude: _parseDoubleFromDynamic(data['latitude']),
+      longitude: _parseDoubleFromDynamic(data['longitude']),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       lastActive: (data['lastActive'] as Timestamp?)?.toDate(),
@@ -263,6 +263,17 @@ class UserProfile {
     }
     if (value is double) return value.toInt();
     return 0;
+  }
+
+  /// Helper method to parse double from dynamic value (handles string, double, and other types)
+  static double? _parseDoubleFromDynamic(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value);
+    }
+    return null;
   }
 
   /// Check if user has specific skill offering
