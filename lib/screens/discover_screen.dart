@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:culture_connection/screens/discover/green_book_screen.dart';
 import 'package:culture_connection/screens/discover/user_search_screen.dart';
 import 'package:culture_connection/screens/discover/forums_screen.dart';
+import 'package:culture_connection/screens/paywall_screen.dart';
 
 class DiscoverScreen extends StatelessWidget {
   const DiscoverScreen({super.key});
@@ -77,7 +78,10 @@ class DiscoverScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const UserSearchScreen(),
+                                builder: (context) => PaywallScreen(
+                                  destinationScreen: const UserSearchScreen(),
+                                  screenName: 'User Search',
+                                ),
                               ),
                             );
                           },

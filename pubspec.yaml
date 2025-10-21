@@ -86,6 +86,10 @@ dependencies:
   
   # Environment
   flutter_dotenv: ^5.1.0
+  
+  # In-App Purchases
+  in_app_purchase: ^3.1.11
+  purchases_flutter: ^8.0.0
 
 dev_dependencies:
   flutter_test:

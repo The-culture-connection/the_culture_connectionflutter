@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import 'login_screen.dart';
-import 'registration_screen.dart';
+import 'terms_conditions_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -54,7 +54,7 @@ class WelcomeScreen extends StatelessWidget {
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => const RegistrationScreen(),
+                            builder: (_) => const TermsConditionsScreen(),
                           ),
                         );
                       },

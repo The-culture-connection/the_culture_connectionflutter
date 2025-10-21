@@ -8,6 +8,7 @@ import 'package:culture_connection/constants/app_colors.dart';
 import 'package:culture_connection/services/firestore_service.dart';
 import 'package:culture_connection/services/auth_service.dart';
 import 'package:culture_connection/services/chat_service.dart';
+import 'package:culture_connection/services/rsvp_service.dart';
 import 'package:culture_connection/screens/chat/chat_detail_screen.dart';
 
 class UserSearchScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final AuthService _authService = AuthService();
   final ChatService _chatService = ChatService();
+  final RSVPService _rsvpService = RSVPService();
   
   // Search state
   String _nameSearch = '';
@@ -889,25 +891,34 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
         return;
       }
       
-      // Create connection request
-      final connection = Connection(
-        id: '', // Will be set by Firestore
-        fromUserId: currentUserId,
-        toUserId: user.id,
-        timestamp: DateTime.now(),
-        type: 'networking',
-        status: 'pending',
-      );
-      
-      await _firestoreService.createConnection(connection);
+      // Use RSVPService for consistent connection handling
+      final result = await _rsvpService.sendConnectionRequest(userId: user.id);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Connection request sent!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        if (result['success'] == true) {
+          if (result['isMatch'] == true) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('🎉 It\'s a Match! You are now connected!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Connection request sent!'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Connection failed: ${result['message'] ?? 'Unknown error'}'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -9,6 +9,7 @@ import '../search/user_search_screen.dart';
 import '../mentoring/mentoring_connections_screen.dart';
 import '../networking/networking_connections_screen.dart';
 import '../voting_screen.dart';
+import '../paywall_screen.dart';
 
 class ConnectionsScreen extends ConsumerStatefulWidget {
   const ConnectionsScreen({super.key});
@@ -123,7 +124,10 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const MentoringConnectionsScreen(),
+                                  builder: (context) => PaywallScreen(
+                                    destinationScreen: const MentoringConnectionsScreen(),
+                                    screenName: 'Mentoring Connections',
+                                  ),
                                 ),
                               );
                             },
@@ -138,7 +142,10 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const NetworkingConnectionsScreen(),
+                                  builder: (context) => PaywallScreen(
+                                    destinationScreen: const NetworkingConnectionsScreen(),
+                                    screenName: 'Networking Connections',
+                                  ),
                                 ),
                               );
                             },
@@ -153,7 +160,10 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const TodaysMatchesScreen(),
+                                  builder: (context) => PaywallScreen(
+                                    destinationScreen: const TodaysMatchesScreen(),
+                                    screenName: "Today's Matches",
+                                  ),
                                 ),
                               );
                             },
@@ -173,6 +183,10 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                               );
                             },
                           ),
+                          
+                          const SizedBox(height: 16),
+                          
+                          
                         ],
                       ),
                     ],

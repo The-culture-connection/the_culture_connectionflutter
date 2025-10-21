@@ -246,3 +246,4 @@ exports.getVoteResults = functions.https.onRequest((req, res) => {
       `);
     });
 });
+

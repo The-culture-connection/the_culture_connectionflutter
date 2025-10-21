@@ -794,9 +794,21 @@ class _BlackBusinessScreenState extends State<BlackBusinessScreen> {
           // Add Business Button
           GestureDetector(
             onTap: () async {
-              const url = 'https://forms.gle/eqHkVrhk72kGsL4y5';
-              if (await canLaunchUrl(Uri.parse(url))) {
-                await launchUrl(Uri.parse(url));
+              const url = 'https://forms.gle/9EsVsLeHzKfGLYCw6';
+              try {
+                final uri = Uri.parse(url);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(
+                    uri,
+                    mode: LaunchMode.externalApplication,
+                  );
+                } else {
+                  // Fallback: show URL in dialog
+                  _showUrlDialog(url);
+                }
+              } catch (e) {
+                // Fallback: show URL in dialog
+                _showUrlDialog(url);
               }
             },
             child: Container(
@@ -1382,7 +1394,7 @@ class _BlackBusinessScreenState extends State<BlackBusinessScreen> {
                         print('Opening website: $websiteUrl');
                         // Add https:// if no protocol is specified
                         if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
-                          websiteUrl = 'https://$websiteUrl';
+                          websiteUrl = 'https://forms.gle/AxrbQygfoP2iz8yh6';
                         }
                         final uri = Uri.parse(websiteUrl);
                         
@@ -1556,5 +1568,60 @@ class _BlackBusinessScreenState extends State<BlackBusinessScreen> {
     
     // Also check for exact subcategory match
     return category.contains(searchText) || description.contains(searchText);
+  }
+
+  /// Show URL in a dialog as fallback
+  void _showUrlDialog(String url) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1d1d1e),
+        title: const Text(
+          'Add Business',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'To add your business, please visit:',
+              style: TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFF7E00)),
+              ),
+              child: SelectableText(
+                url,
+                style: const TextStyle(
+                  color: Color(0xFFFF7E00),
+                  fontSize: 14,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Copy this URL and paste it into your browser.',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Close',
+              style: TextStyle(color: Color(0xFFFF7E00)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
