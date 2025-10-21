@@ -4,6 +4,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import 'package:add_2_calendar/add_2_calendar.dart' as calendar;
 import '../models/event.dart';
 import '../models/event_rsvp.dart';
 import '../models/user_profile.dart';
@@ -194,22 +195,25 @@ class RSVPService {
         }
       }
 
-      // Create calendar event URL
-      final startDate = event.date.toIso8601String().replaceAll(':', '').split('.')[0] + 'Z';
-      final endDate = event.date.add(const Duration(hours: 2)).toIso8601String().replaceAll(':', '').split('.')[0] + 'Z';
-      
-      final title = Uri.encodeComponent(event.title);
-      final details = Uri.encodeComponent(event.details);
-      final location = Uri.encodeComponent(event.place);
-      
-      final calendarUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=$title&dates=$startDate/$endDate&details=$details&location=$location';
-      
-      final uri = Uri.parse(calendarUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        _showingCalendarSuccessAlert = true;
-        print('✅ Calendar event created successfully: ${event.title}');
-      }
+      // Use add_2_calendar package for native calendar integration
+      final calendar.Event calendarEvent = calendar.Event(
+        title: event.title,
+        description: event.details,
+        location: event.place,
+        startDate: event.date,
+        endDate: event.date.add(const Duration(hours: 2)),
+        allDay: false,
+        iosParams: const calendar.IOSParams(
+          reminder: Duration(minutes: 15),
+        ),
+        androidParams: const calendar.AndroidParams(
+          emailInvites: [],
+        ),
+      );
+
+      await calendar.Add2Calendar.addEvent2Cal(calendarEvent);
+      _showingCalendarSuccessAlert = true;
+      print('✅ Calendar event created successfully: ${event.title}');
     } catch (e) {
       print('❌ Error creating calendar event: $e');
     }

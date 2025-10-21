@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:add_2_calendar/add_2_calendar.dart';
+import 'package:add_2_calendar/add_2_calendar.dart' as calendar;
 import '../../models/chat_room.dart';
 import '../../models/message.dart';
 import '../../models/date_proposal.dart';
@@ -49,10 +49,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         title: Text(
           widget.chatRoom.otherParticipantName,
           style: const TextStyle(
@@ -334,22 +331,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final status = await Permission.calendar.request();
     if (status.isGranted) {
       try {
-        final Event event = Event(
+        final calendar.Event event = calendar.Event(
           title: 'Meeting with ${widget.chatRoom.otherParticipantName}',
           description: proposal.details,
           location: proposal.place,
           startDate: proposal.date,
           endDate: proposal.date.add(const Duration(hours: 1)), // 1 hour duration
           allDay: false,
-          iosParams: const IOSParams(
+          iosParams: const calendar.IOSParams(
             reminder: Duration(minutes: 15),
           ),
-          androidParams: const AndroidParams(
+          androidParams: const calendar.AndroidParams(
             emailInvites: [],
           ),
         );
 
-        await Add2Calendar.addEvent2Cal(event);
+        await calendar.Add2Calendar.addEvent2Cal(event);
       } catch (e) {
         print('Error adding to calendar: $e');
         if (mounted) {

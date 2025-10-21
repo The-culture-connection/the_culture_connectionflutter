@@ -20,6 +20,8 @@ class UserProfile {
   final String skills;
   final List<String> skillsOffering;
   final List<String> skillsSeeking;
+  final List<String> skillsOfferingCategories;
+  final List<String> skillsSeekingCategories;
   final List<String> purposes;
   final String photoURL;
   final String? fcmToken;
@@ -63,6 +65,8 @@ class UserProfile {
     this.skills = '',
     this.skillsOffering = const [],
     this.skillsSeeking = const [],
+    this.skillsOfferingCategories = const [],
+    this.skillsSeekingCategories = const [],
     this.purposes = const [],
     this.photoURL = '',
     this.fcmToken,
@@ -108,6 +112,8 @@ class UserProfile {
       skills: data['Skills'] ?? data['skills'] ?? 'Not specified',
       skillsOffering: List<String>.from(data['Skills Offering'] ?? data['skillsOffering'] ?? []),
       skillsSeeking: List<String>.from(data['Skills Seeking'] ?? data['skillsSeeking'] ?? []),
+      skillsOfferingCategories: List<String>.from(data['Skills Offering Categories'] ?? data['skillsOfferingCategories'] ?? []),
+      skillsSeekingCategories: List<String>.from(data['Skills Seeking Categories'] ?? data['skillsSeekingCategories'] ?? []),
       purposes: List<String>.from(data['Purposes'] ?? data['purposes'] ?? []),
       photoURL: data['photoURL'] ?? '',
       fcmToken: data['fcmToken'],
@@ -173,6 +179,8 @@ class UserProfile {
       skills: _parseStringFromDynamic(data['Skills']),
       skillsOffering: List<String>.from(data['Skills Offering'] ?? []),
       skillsSeeking: List<String>.from(data['Skills Seeking'] ?? []),
+      skillsOfferingCategories: List<String>.from(data['Skills Offering Categories'] ?? []),
+      skillsSeekingCategories: List<String>.from(data['Skills Seeking Categories'] ?? []),
       purposes: List<String>.from(data['Purposes'] ?? []),
       photoURL: data['photoURL'] ?? '',
       fcmToken: data['fcmToken'],
@@ -382,6 +390,8 @@ class UserProfile {
     String? skills,
     List<String>? skillsOffering,
     List<String>? skillsSeeking,
+    List<String>? skillsOfferingCategories,
+    List<String>? skillsSeekingCategories,
     List<String>? purposes,
     String? photoURL,
     String? fcmToken,
@@ -425,6 +435,8 @@ class UserProfile {
       skills: skills ?? this.skills,
       skillsOffering: skillsOffering ?? this.skillsOffering,
       skillsSeeking: skillsSeeking ?? this.skillsSeeking,
+      skillsOfferingCategories: skillsOfferingCategories ?? this.skillsOfferingCategories,
+      skillsSeekingCategories: skillsSeekingCategories ?? this.skillsSeekingCategories,
       purposes: purposes ?? this.purposes,
       photoURL: photoURL ?? this.photoURL,
       fcmToken: fcmToken ?? this.fcmToken,
@@ -471,6 +483,8 @@ class UserProfile {
       'skills': skills,
       'skillsOffering': skillsOffering,
       'skillsSeeking': skillsSeeking,
+      'skillsOfferingCategories': skillsOfferingCategories,
+      'skillsSeekingCategories': skillsSeekingCategories,
       'purposes': purposes,
       'photoURL': photoURL,
       'fcmToken': fcmToken,
@@ -516,6 +530,8 @@ class UserProfile {
       'Skills': skills,
       'Skills Offering': skillsOffering,
       'Skills Seeking': skillsSeeking,
+      'Skills Offering Categories': skillsOfferingCategories,
+      'Skills Seeking Categories': skillsSeekingCategories,
       'Purposes': purposes,
       'photoURL': photoURL,
       'fcmToken': fcmToken,

@@ -340,10 +340,7 @@ class _EditProfileSimpleScreenState extends State<EditProfileSimpleScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         title: const Text(
           'Edit Profile',
           style: TextStyle(

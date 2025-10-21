@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:add_2_calendar/add_2_calendar.dart' as calendar;
 import '../models/chat_room.dart';
 import '../models/message.dart';
 import '../models/date_proposal.dart';
@@ -782,9 +783,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     required DateTime date,
     required String location,
   }) async {
-    // This would typically use a calendar plugin like device_calendar
-    // For now, we'll show a success message
-    print('Calendar event created: $title at $date');
+    try {
+      final calendar.Event calendarEvent = calendar.Event(
+        title: title,
+        description: description,
+        location: location,
+        startDate: date,
+        endDate: date.add(const Duration(hours: 1)),
+        allDay: false,
+        iosParams: const calendar.IOSParams(
+          reminder: Duration(minutes: 15),
+        ),
+        androidParams: const calendar.AndroidParams(
+          emailInvites: [],
+        ),
+      );
+
+      await calendar.Add2Calendar.addEvent2Cal(calendarEvent);
+      print('✅ Calendar event created: $title at $date');
+    } catch (e) {
+      print('❌ Error creating calendar event: $e');
+    }
   }
 
   void _showCalendarPermissionAlert() {

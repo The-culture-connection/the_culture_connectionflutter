@@ -4,7 +4,7 @@ import '../screens/auth/login_screen.dart';
 import '../screens/auth/registration_screen.dart';
 import '../screens/main_navigation_screen.dart';
 import '../screens/discover/discover_screen.dart';
-import '../screens/search/user_search_screen.dart';
+import '../screens/search/user_search_screen_comprehensive.dart';
 import '../screens/business/black_business_screen.dart';
 import '../screens/forums/forums_screen.dart';
 import '../screens/chat/chat_list_screen.dart';
@@ -41,7 +41,7 @@ class AppRouter {
       GoRoute(
         path: '/search',
         name: 'search',
-        builder: (context, state) => const UserSearchScreen(),
+        builder: (context, state) => const UserSearchScreenComprehensive(),
       ),
       GoRoute(
         path: '/directory',

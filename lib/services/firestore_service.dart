@@ -100,8 +100,31 @@ class FirestoreService {
 
   /// Get all users (with pagination)
   Future<List<UserProfile>> getAllUsers({int limit = 50}) async {
-    final snapshot = await _usersCollection.limit(limit).get();
-    return snapshot.docs.map((doc) => UserProfile.fromFirestore(doc)).toList();
+    print('FirestoreService: getAllUsers called with limit: $limit');
+    try {
+      print('FirestoreService: Querying users collection...');
+      final snapshot = await _usersCollection.limit(limit).get();
+      print('FirestoreService: Got ${snapshot.docs.length} documents');
+      
+      final users = snapshot.docs.map((doc) {
+        print('FirestoreService: Processing document ${doc.id}');
+        try {
+          final user = UserProfile.fromFirestore(doc);
+          print('FirestoreService: Successfully created user: ${user.fullName}');
+          return user;
+        } catch (e) {
+          print('FirestoreService: Error creating user from doc ${doc.id}: $e');
+          rethrow;
+        }
+      }).toList();
+      
+      print('FirestoreService: Returning ${users.length} users');
+      return users;
+    } catch (e) {
+      print('FirestoreService: Error in getAllUsers: $e');
+      print('FirestoreService: Error type: ${e.runtimeType}');
+      rethrow;
+    }
   }
 
   // ============ POST OPERATIONS ============

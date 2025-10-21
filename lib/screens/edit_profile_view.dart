@@ -83,10 +83,7 @@ class _EditProfileViewState extends State<EditProfileView> with SingleTickerProv
             fontFamily: 'Inter',
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         actions: [
           // Preview Button
           TextButton(

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:culture_connection/screens/discover/green_book_screen.dart';
 import 'package:culture_connection/screens/discover/user_search_screen.dart';
 import 'package:culture_connection/screens/discover/forums_screen.dart';
-import 'package:culture_connection/screens/paywall_screen.dart';
+import 'package:culture_connection/utils/subscription_helper.dart';
+import 'package:culture_connection/screens/search/user_search_screen_comprehensive.dart';
 
 class DiscoverScreen extends StatelessWidget {
   const DiscoverScreen({super.key});
@@ -74,15 +75,11 @@ class DiscoverScreen extends StatelessWidget {
                           iconColor: const Color(0xFFFF7E00),
                           title: "SEARCH USERS",
                           subtitle: "Find people to connect with",
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => PaywallScreen(
-                                  destinationScreen: const UserSearchScreen(),
-                                  screenName: 'User Search',
-                                ),
-                              ),
+                          onTap: () async {
+                            await SubscriptionHelper.checkSubscriptionAndNavigate(
+                              context: context,
+                              destinationScreen: const UserSearchScreenComprehensive(),
+                              screenName: 'User Search',
                             );
                           },
                         ),

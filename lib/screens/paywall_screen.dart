@@ -31,7 +31,21 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   Future<void> _initializeSubscription() async {
     await _subscriptionService.initialize();
+    
+    // Check if user already has an active subscription
+    final hasActiveSubscription = await _subscriptionService.checkActiveSubscription();
+    
     if (mounted) {
+      if (hasActiveSubscription) {
+        // User already has subscription, navigate to destination screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => widget.destinationScreen,
+          ),
+        );
+        return;
+      }
+      
       setState(() {
         final product = _subscriptionService.monthlySubscription;
         _price = product?.price;
@@ -594,7 +608,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
       if (mounted) {
         if (result['success'] == true) {
           // Check if user has active subscription
-          final hasActiveSubscription = await _subscriptionService.hasActiveSubscription();
+          final hasActiveSubscription = await _subscriptionService.checkActiveSubscription();
           
           if (hasActiveSubscription) {
             ScaffoldMessenger.of(context).showSnackBar(

@@ -43,16 +43,24 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
     
     try {
       final firestoreService = ref.read(firestoreServiceProvider);
-      final users = await firestoreService.getAllUsers(limit: 100);
+      final users = await firestoreService.getAllUsers(limit: 50).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Loading users timed out');
+        },
+      );
       
-      setState(() {
-        _allUsers = users;
-        _searchResults = users;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() {
+          _allUsers = users;
+          _searchResults = users;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading users: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading users: $e')),
         );
@@ -135,7 +143,26 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
             ),
         ],
       ),
-      body: Column(
+      body: _isLoading
+        ? const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  color: AppColors.electricOrange,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Loading users...',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          )
+        : Column(
         children: [
           // Search bar
           Padding(

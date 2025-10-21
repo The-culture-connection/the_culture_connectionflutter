@@ -10,6 +10,7 @@ import '../../constants/experience_levels.dart';
 import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/firestore_service.dart';
+import '../../services/skills_categorization_service.dart';
 import '../../models/user_profile.dart';
 import '../../utils/validators.dart';
 import '../main_navigation_screen.dart';
@@ -297,23 +298,14 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       return;
     }
 
-    if (_cityController.text.isEmpty || _stateController.text.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please enter your city and state'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-      return;
-    }
+    // Location is now optional - no validation required
 
     setState(() => _isLoading = true);
 
     try {
-      // Geocode if not already done
-      if (_latitude == null || _longitude == null) {
+      // Geocode if location is provided and not already done
+      if ((_cityController.text.isNotEmpty || _stateController.text.isNotEmpty) && 
+          (_latitude == null || _longitude == null)) {
         await _geocodeLocation();
       }
 
@@ -333,7 +325,11 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         _profileImage!,
       );
 
-      // 3. Create user profile in Firestore
+      // 3. Categorize skills into main categories
+      final skillsOfferingCategories = SkillsCategorizationService.getMainCategoriesForSkills(_selectedSkillsOffering.toList());
+      final skillsSeekingCategories = SkillsCategorizationService.getMainCategoriesForSkills(_selectedSkillsSeeking.toList());
+
+      // 4. Create user profile in Firestore
       final userProfile = UserProfile(
         id: userId,
         userId: userId,
@@ -343,12 +339,19 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
         experienceLevel: _selectedLevel!,
         skillsOffering: _selectedSkillsOffering.toList(),
         skillsSeeking: _selectedSkillsSeeking.toList(),
+        skillsOfferingCategories: skillsOfferingCategories,
+        skillsSeekingCategories: skillsSeekingCategories,
         purposes: _selectedPurposes.toList(),
         photoURL: photoURL,
         totalPoints: 0,
         blockedUsers: {},
         genderPreferences: 'Everyone',
         connectionPreference: 'Both',
+        location: _cityController.text.isNotEmpty && _stateController.text.isNotEmpty 
+            ? '${_cityController.text}, ${_stateController.text}'
+            : '',
+        latitude: _latitude,
+        longitude: _longitude,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         lastActive: DateTime.now(),
@@ -987,7 +990,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Help others find you based on location',
+            'Help others find you based on location (optional)',
             style: TextStyle(color: Colors.white.withOpacity(0.6)),
           ),
           const SizedBox(height: 24),
@@ -997,7 +1000,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             controller: _cityController,
             label: 'City',
             icon: Icons.location_city,
-            validator: Validators.required,
+            validator: null, // Make optional
           ),
           const SizedBox(height: 16),
           
@@ -1006,7 +1009,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
             controller: _stateController,
             label: 'State',
             icon: Icons.map,
-            validator: Validators.required,
+            validator: null, // Make optional
           ),
           const SizedBox(height: 24),
           
@@ -1020,6 +1023,25 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.electricOrange,
                 side: const BorderSide(color: AppColors.electricOrange, width: 2),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Skip for now button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _skipLocation,
+              icon: const Icon(Icons.skip_next),
+              label: const Text('Skip for Now'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.grey,
+                side: const BorderSide(color: Colors.grey, width: 2),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -1057,6 +1079,19 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       ),
     );
   }
+
+
+  void _skipLocation() {
+    // Clear any existing location data
+    _cityController.clear();
+    _stateController.clear();
+    _latitude = null;
+    _longitude = null;
+    
+    // Proceed to create profile (this is the final step)
+    _register();
+  }
+
 
   Widget _buildSkillCategory(String category, List<String> skills, Set<String> selectedSkills) {
     return Container(

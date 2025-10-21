@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
+import '../../utils/subscription_helper.dart';
 import '../todays_matches_screen.dart';
 import '../events/events_screen.dart';
 import '../newsfeed_screen.dart';
@@ -9,7 +10,6 @@ import '../search/user_search_screen.dart';
 import '../mentoring/mentoring_connections_screen.dart';
 import '../networking/networking_connections_screen.dart';
 import '../voting_screen.dart';
-import '../paywall_screen.dart';
 
 class ConnectionsScreen extends ConsumerStatefulWidget {
   const ConnectionsScreen({super.key});
@@ -120,15 +120,11 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                           // FIND A MENTOR Button
                           _buildActionButton(
                             text: 'FIND A MENTOR',
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PaywallScreen(
-                                    destinationScreen: const MentoringConnectionsScreen(),
-                                    screenName: 'Mentoring Connections',
-                                  ),
-                                ),
+                            onTap: () async {
+                              await SubscriptionHelper.checkSubscriptionAndNavigate(
+                                context: context,
+                                destinationScreen: const MentoringConnectionsScreen(),
+                                screenName: 'Mentoring Connections',
                               );
                             },
                           ),
@@ -138,15 +134,11 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                           // GROW YOUR NETWORK Button
                           _buildActionButton(
                             text: 'GROW YOUR NETWORK',
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PaywallScreen(
-                                    destinationScreen: const NetworkingConnectionsScreen(),
-                                    screenName: 'Networking Connections',
-                                  ),
-                                ),
+                            onTap: () async {
+                              await SubscriptionHelper.checkSubscriptionAndNavigate(
+                                context: context,
+                                destinationScreen: const NetworkingConnectionsScreen(),
+                                screenName: 'Networking Connections',
                               );
                             },
                           ),
@@ -156,15 +148,11 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                           // TODAY'S MATCHES Button
                           _buildActionButton(
                             text: "TODAY'S MATCHES",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => PaywallScreen(
-                                    destinationScreen: const TodaysMatchesScreen(),
-                                    screenName: "Today's Matches",
-                                  ),
-                                ),
+                            onTap: () async {
+                              await SubscriptionHelper.checkSubscriptionAndNavigate(
+                                context: context,
+                                destinationScreen: const TodaysMatchesScreen(),
+                                screenName: "Today's Matches",
                               );
                             },
                           ),

@@ -23,7 +23,6 @@ class ProfileCardView extends StatefulWidget {
 
 class _ProfileCardViewState extends State<ProfileCardView> {
   bool _showDetails = false;
-  bool _isBlocking = false;
 
   @override
   Widget build(BuildContext context) {
@@ -48,9 +47,6 @@ class _ProfileCardViewState extends State<ProfileCardView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Top Row: Three-Dot Menu
-                _buildTopMenu(),
-                
                 // Profile Photo
                 _buildProfilePhoto(),
                 
@@ -76,59 +72,6 @@ class _ProfileCardViewState extends State<ProfileCardView> {
     );
   }
 
-  Widget _buildTopMenu() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 20, right: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'block') {
-                _blockUser();
-              } else if (value == 'report') {
-                _showReportDialog();
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'block',
-                child: Row(
-                  children: [
-                    Icon(Icons.block, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Block User'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'report',
-                child: Row(
-                  children: [
-                    Icon(Icons.flag, color: Colors.orange),
-                    SizedBox(width: 8),
-                    Text('Report User'),
-                  ],
-                ),
-              ),
-            ],
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.3),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.more_horiz,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildProfilePhoto() {
     return Container(
@@ -594,103 +537,4 @@ class _ProfileCardViewState extends State<ProfileCardView> {
         .trim();
   }
 
-  Future<void> _blockUser() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    setState(() {
-      _isBlocking = true;
-    });
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('Profiles')
-          .doc(currentUser.uid)
-          .update({
-        'blockedUsers.${widget.profile.id}': true,
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('User ${widget.profile.fullName} blocked successfully.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      
-      widget.onPass(); // Move to next profile after blocking
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to block user: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() {
-        _isBlocking = false;
-      });
-    }
-  }
-
-  void _showReportDialog() {
-    final reportController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Report User'),
-        content: TextField(
-          controller: reportController,
-          decoration: const InputDecoration(
-            hintText: 'Enter reason...',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (reportController.text.isNotEmpty) {
-                _reportUser(reportController.text);
-                Navigator.of(context).pop();
-              }
-            },
-            child: const Text('Submit'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _reportUser(String reason) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    try {
-      await FirebaseFirestore.instance.collection('Reports').add({
-        'reportedUserId': widget.profile.id,
-        'reportReason': reason,
-        'timestamp': FieldValue.serverTimestamp(),
-        'reportedBy': currentUser.uid,
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('User ${widget.profile.fullName} reported successfully.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to report user: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 }

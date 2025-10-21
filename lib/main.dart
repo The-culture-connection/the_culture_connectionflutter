@@ -9,9 +9,16 @@ import 'screens/main_navigation_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    print('Firebase initialization error: $e');
+    // Continue with app even if Firebase fails
+  }
+  
   runApp(const ProviderScope(child: CultureConnectionApp()));
 }
 
@@ -124,6 +131,13 @@ class AuthWrapper extends StatelessWidget {
               ),
             ),
           );
+        }
+
+        // Handle errors
+        if (snapshot.hasError) {
+          print('Auth error: ${snapshot.error}');
+          // Show welcome screen on error
+          return const WelcomeScreen();
         }
 
         // If user is logged in, show main app
