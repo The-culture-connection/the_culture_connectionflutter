@@ -1,7 +1,7 @@
 name: culture_connection
 description: Culture Connection (Flutter)
 publish_to: "none"
-version: version: 2001.0.0+1
+version: 2003.0.0+15
 
 environment:
   sdk: ">=3.5.0 <4.0.0"

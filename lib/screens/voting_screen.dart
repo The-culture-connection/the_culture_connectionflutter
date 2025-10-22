@@ -121,9 +121,10 @@ class _VotingScreenState extends State<VotingScreen> {
             'lastUpdated': FieldValue.serverTimestamp(),
           };
           
-          // Initialize all options to 0
+          // Initialize all options to 0 with sanitized field names
           for (String option in _options) {
-            initialData[option] = 0;
+            final sanitizedFieldName = option.replaceAll(RegExp(r'[^\w\s]'), '_').replaceAll(' ', '_');
+            initialData[sanitizedFieldName] = 0;
           }
           
           await docRef.set(initialData);
@@ -131,12 +132,13 @@ class _VotingScreenState extends State<VotingScreen> {
         
         // Now use a simple update approach instead of transaction
         final currentData = docSnapshot.exists ? docSnapshot.data()! : <String, dynamic>{};
-        final currentCount = (currentData[_selectedOption!] as int?) ?? 0;
+        final sanitizedFieldName = _selectedOption!.replaceAll(RegExp(r'[^\w\s]'), '_').replaceAll(' ', '_');
+        final currentCount = (currentData[sanitizedFieldName] as int?) ?? 0;
         final newCount = currentCount + 1;
         
         // Update the document
         await docRef.update({
-          _selectedOption!: newCount,
+          sanitizedFieldName: newCount,
           'Date': todayString,
           'lastUpdated': FieldValue.serverTimestamp(),
         });
@@ -147,12 +149,13 @@ class _VotingScreenState extends State<VotingScreen> {
         final docSnapshot = await docRef.get();
         
         final currentData = docSnapshot.exists ? docSnapshot.data()! : <String, dynamic>{};
-        final currentCount = (currentData[_selectedOption!] as int?) ?? 0;
+        final sanitizedFieldName = _selectedOption!.replaceAll(RegExp(r'[^\w\s]'), '_').replaceAll(' ', '_');
+        final currentCount = (currentData[sanitizedFieldName] as int?) ?? 0;
         final newCount = currentCount + 1;
         
         // Use set with merge to ensure the document exists
         await docRef.set({
-          _selectedOption!: newCount,
+          sanitizedFieldName: newCount,
           'Date': todayString,
           'lastUpdated': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
