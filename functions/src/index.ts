@@ -7,10 +7,11 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-import {setGlobalOptions} from "firebase-functions";
-import {onRequest, onCall} from "firebase-functions/https";
+import {setGlobalOptions} from "firebase-functions/v2";
+import {onRequest, onCall} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import {parse} from "csv-parse/sync";
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
@@ -21,11 +22,12 @@ import * as admin from "firebase-admin";
 // per-function limit. You can override the limit for each function using the
 // `maxInstances` option in the function's options, e.g.
 // `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({maxInstances: 10});
+// NOTE: setGlobalOptions applies to v2 functions
+// This sets default options for all v2 functions unless overridden
+// Runtime is set in package.json engines field (Node.js 20)
+setGlobalOptions({
+  maxInstances: 10,
+});
 
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
@@ -562,7 +564,7 @@ function calculateExperienceMatch(user: any, otherUser: any): {
  * @param {string} fromUserId - ID of the user sending the request
  * @param {string} toUserId - ID of the user receiving the request
  */
-async function notifyOnNewConnectionRequest(
+async function sendConnectionRequestNotification(
   fromUserId: string,
   toUserId: string,
 ) {
@@ -635,7 +637,7 @@ async function notifyOnNewConnectionRequest(
  * @param {string} user1Id - ID of the first user in the match
  * @param {string} user2Id - ID of the second user in the match
  */
-async function notifyOnNewMatch(user1Id: string, user2Id: string) {
+async function sendMatchNotificationHelper(user1Id: string, user2Id: string) {
   try {
     const [user1Profile, user2Profile] = await Promise.all([
       db.collection("Profiles").doc(user1Id).get(),
@@ -761,7 +763,7 @@ export const handleUserConnection = onCall(async (request) => {
       logger.info(`No mutual like found between ${fromUserId} and ${toUserId}`);
 
       // Send notification for new connection request
-      await notifyOnNewConnectionRequest(fromUserId, toUserId);
+      await sendConnectionRequestNotification(fromUserId, toUserId);
 
       return {
         success: true,
@@ -795,7 +797,7 @@ export const handleUserConnection = onCall(async (request) => {
     logger.info("Match created and connection requests deleted");
 
     // Send match notification to both users
-    await notifyOnNewMatch(fromUserId, toUserId);
+    await sendMatchNotificationHelper(fromUserId, toUserId);
 
     // Step 4: Create chat room
     const participants = [fromUserId, toUserId].sort();
@@ -835,10 +837,13 @@ export const handleUserConnection = onCall(async (request) => {
 
 /**
  * Send notification for new connection request
+ * NOTE: Commented out - using v1 API. Migrate to v2 if needed.
+ * Uncomment and update to use firebase-functions/v2/firestore if needed
  */
+/* 
 export const notifyOnNewConnectionRequest = functions.firestore
   .document("Connects/{connectionId}")
-  .onCreate(async (snap, context) => {
+  .onCreate(async (snap: any, context: any) => {
     const connectionData = snap.data();
     const toUserId = connectionData.toUserId;
     
@@ -877,13 +882,16 @@ export const notifyOnNewConnectionRequest = functions.firestore
       logger.error("Error sending connection request notification:", error);
     }
   });
+*/
 
 /**
  * Send notification for new match
+ * NOTE: Commented out - using v1 API. Migrate to v2 if needed.
  */
+/*
 export const notifyOnNewMatch = functions.firestore
   .document("Matches/{matchId}")
-  .onCreate(async (snap, context) => {
+  .onCreate(async (snap: any, context: any) => {
     const matchData = snap.data();
     const userId1 = matchData.userId1;
     const userId2 = matchData.userId2;
@@ -900,13 +908,16 @@ export const notifyOnNewMatch = functions.firestore
       logger.error("Error sending match notifications:", error);
     }
   });
+*/
 
 /**
  * Send notification for new message
+ * NOTE: Commented out - using v1 API. Migrate to v2 if needed.
  */
+/*
 export const notifyOnNewMessage = functions.firestore
   .document("ChatRooms/{chatRoomId}/Messages/{messageId}")
-  .onCreate(async (snap, context) => {
+  .onCreate(async (snap: any, context: any) => {
     const messageData = snap.data();
     const senderId = messageData.senderId;
     const chatRoomId = context.params.chatRoomId;
@@ -958,13 +969,16 @@ export const notifyOnNewMessage = functions.firestore
       logger.error("Error sending message notification:", error);
     }
   });
+*/
 
 /**
  * Send notification for new date proposal
+ * NOTE: Commented out - using v1 API. Migrate to v2 if needed.
  */
+/*
 export const notifyOnNewDateProposal = functions.firestore
   .document("ChatRooms/{chatRoomId}/DateProposals/{proposalId}")
-  .onCreate(async (snap, context) => {
+  .onCreate(async (snap: any, context: any) => {
     const proposalData = snap.data();
     const proposerId = proposalData.proposerId;
     const chatRoomId = context.params.chatRoomId;
@@ -1017,43 +1031,228 @@ export const notifyOnNewDateProposal = functions.firestore
       logger.error("Error sending date proposal notification:", error);
     }
   });
+*/
 
-// Helper function to send match notification
-async function sendMatchNotification(userId: string, matchedUserId: string): Promise<boolean> {
+// ======= BUSINESS DATA PROCESSING FUNCTION =======
+/**
+ * Processes business data from CSV file in Firebase Storage
+ * and creates individual business documents at /Businesses/Cincinnati/results/
+ * 
+ * This function:
+ * 1. Downloads CSV from Firebase Storage at: Business Scraper/Business_download_enriched.csv
+ * 2. Parses the CSV data
+ * 3. Creates individual documents with mapped fields:
+ *    - address → "address"
+ *    - category → "categories" (as array)
+ *    - description → "description"
+ *    - Name → "name"
+ *    - Phone → "phone"
+ */
+export const processBusinessData = onRequest({
+  cors: true,
+  memory: "2GiB",
+  timeoutSeconds: 540,
+}, async (req: any, res: any) => {
   try {
-    // Get user's FCM token
-    const userDoc = await db.collection("Profiles").doc(userId).get();
-    const userData = userDoc.data();
-    const fcmToken = userData?.fcmToken;
+    logger.info("Starting business data processing from Storage...");
+    logger.info("Request method:", req.method);
+    logger.info("Request query:", req.query);
+    logger.info("Request body:", req.body);
+
+    // Storage path - can be overridden via query parameter
+    const storagePath = req.query.storagePath || 
+                       req.body?.storagePath || 
+                       "Business Scraper/Business_download_enriched.csv";
     
-    if (!fcmToken) {
-      logger.warn(`No FCM token found for user ${userId}`);
-      return false;
+    logger.info(`Attempting to download CSV from Storage: ${storagePath}`);
+
+    // Get Firebase Storage
+    const storage = admin.storage();
+    const bucket = storage.bucket("culture-connection-d442f.firebasestorage.app");
+    const file = bucket.file(storagePath);
+
+    // Check if file exists
+    const [exists] = await file.exists();
+    if (!exists) {
+      logger.error(`File not found in Storage: ${storagePath}`);
+      res.status(404).json({
+        success: false,
+        error: `CSV file not found in Storage at: ${storagePath}`,
+        hint: "Expected path: Business Scraper/Business_download_enriched.csv",
+      });
+      return;
     }
+
+    logger.info("File found in Storage, downloading...");
+
+    // Download the file
+    const [fileContent] = await file.download();
+    const csvString = fileContent.toString("utf-8");
     
-    // Get matched user's name
-    const matchedUserDoc = await db.collection("Profiles").doc(matchedUserId).get();
-    const matchedUserData = matchedUserDoc.data();
-    const matchedUserName = matchedUserData?.["Full Name"] || "Someone";
+    logger.info(`Downloaded CSV file, size: ${csvString.length} bytes`);
+
+    // Parse CSV
+    logger.info("Parsing CSV...");
+    const records = parse(csvString, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      relax_column_count: true,
+    });
+
+    logger.info(`Found ${records.length} businesses in CSV`);
+
+    if (!records || records.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: "No businesses found in CSV file",
+      });
+      return;
+    }
+
+    // Convert records to businesses array with proper field mapping
+    const businesses = records.map((record: any) => ({
+      Name: record.Name || record.name || "",
+      Address: record.Address || record.address || "",
+      Category: record.Category || record.category || "",
+      Description: record.Description || record.description || "",
+      Phone: record.Phone || record.phone || "",
+      Website: record.Website || record.website || "",
+    }));
+
+    logger.info(`Processed ${businesses.length} businesses from CSV`);
+
+    // Target collection paths - writing to both "results" and "results 2"
+    const targetCollection = db.collection("Businesses").doc("Cincinnati").collection("results");
+    const targetCollection2 = db.collection("Businesses").doc("Cincinnati").collection("results 2");
     
-    const message = {
-      token: fcmToken,
-      notification: {
-        title: "New Match!",
-        body: `You have a new match with ${matchedUserName}!`,
-      },
-      data: {
-        type: "match",
-        matchedUserId: matchedUserId,
-      },
+    logger.info(`Target collections: Businesses/Cincinnati/results and Businesses/Cincinnati/results 2`);
+
+    // Process each business
+    let successCount = 0;
+    let errorCount = 0;
+    const errors: any[] = [];
+
+    // Use batch writes for efficiency (Firestore allows up to 500 operations per batch)
+    // Since we're writing to 2 collections, adjust batch size (250 businesses * 2 = 500 ops max)
+    const batchSize = 500; // We check operationCount which is now 2 per business
+    let batch = db.batch();
+    let operationCount = 0;
+
+    for (let i = 0; i < businesses.length; i++) {
+      const business = businesses[i];
+      
+      try {
+        // Extract and map fields
+        const name = business.Name || business.name || "";
+        
+        // Skip if no name (required field)
+        if (!name || name.trim() === "") {
+          logger.warn(`Skipping business at index ${i}: no name found`);
+          errorCount++;
+          errors.push({
+            index: i,
+            error: "Missing required field: Name",
+            business: business,
+          });
+          continue;
+        }
+
+        // Handle categories - convert to array if needed
+        const categoryField = business.category || business.Category || business.categories || business.Categories;
+        let categoriesArray: string[] = [];
+        
+        if (categoryField) {
+          if (Array.isArray(categoryField)) {
+            categoriesArray = categoryField.filter((cat: any) => cat && String(cat).trim() !== "");
+          } else if (typeof categoryField === "string") {
+            // Split by common delimiters if it's a string
+            categoriesArray = categoryField
+              .split(/[,;|]/)
+              .map((cat: string) => cat.trim())
+              .filter((cat: string) => cat !== "");
+          }
+        }
+
+        // Map the fields as specified
+        const mappedBusiness = {
+          name: name.trim(),
+          address: business.address || business.Address || "",
+          description: business.description || business.Description || "",
+          phone: business.Phone || business.phone || "",
+          website: business.Website || business.website || "",
+          categories: categoriesArray,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        // Create document reference with a generated ID (or use name as base for ID)
+        const docId = name.toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "") || `business-${i}`;
+        
+        const businessDocRef = targetCollection.doc(docId);
+        const businessDocRef2 = targetCollection2.doc(docId);
+
+        // Set the document in both collections
+        batch.set(businessDocRef, mappedBusiness, { merge: true });
+        batch.set(businessDocRef2, mappedBusiness, { merge: true });
+        operationCount += 2; // Count 2 operations (one for each collection)
+        successCount++;
+
+        // Commit batch if we've reached the limit
+        if (operationCount >= batchSize) {
+          await batch.commit();
+          logger.info(`Committed batch: ${successCount} businesses processed so far`);
+          batch = db.batch();
+          operationCount = 0;
+        }
+
+      } catch (businessError: any) {
+        errorCount++;
+        errors.push({
+          index: i,
+          error: businessError.message || "Unknown error",
+          business: business,
+        });
+        logger.error(`Error processing business at index ${i}:`, businessError);
+      }
+    }
+
+    // Commit any remaining operations
+    if (operationCount > 0) {
+      await batch.commit();
+      logger.info(`Committed final batch`);
+    }
+
+    logger.info(
+      `Business data processing completed. ` +
+      `Success: ${successCount}, Errors: ${errorCount}`
+    );
+
+    logger.info(`Final results: ${successCount} successful, ${errorCount} errors`);
+
+    const response = {
+      success: true,
+      message: `Processed ${businesses.length} businesses`,
+      totalBusinesses: businesses.length,
+      successCount: successCount,
+      errorCount: errorCount,
+      errors: errors.length > 0 ? errors.slice(0, 10) : [], // Return first 10 errors
+      targetPath: "Businesses/Cincinnati/results and Businesses/Cincinnati/results 2",
+      sourceFile: storagePath,
     };
-    
-    await admin.messaging().send(message);
-    logger.info(`Match notification sent to ${userId}`);
-    return true;
-  } catch (error) {
-    logger.error(`Error sending match notification to ${userId}:`, error);
-    return false;
+
+    logger.info("Sending response:", response);
+    res.json(response);
+
+  } catch (error: any) {
+    logger.error("Business data processing failed:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Processing failed",
+      stack: error.stack,
+    });
   }
-}
+});
 

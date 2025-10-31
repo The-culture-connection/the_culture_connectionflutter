@@ -75,11 +75,20 @@ class DiscoverScreen extends StatelessWidget {
                           iconColor: const Color(0xFFFF7E00),
                           title: "SEARCH USERS",
                           subtitle: "Find people to connect with",
-                          onTap: () async {
-                            await SubscriptionHelper.checkSubscriptionAndNavigate(
-                              context: context,
-                              destinationScreen: const UserSearchScreenComprehensive(),
-                              screenName: 'User Search',
+                          onTap: () {
+                            // COMMENTED OUT: Subscription check
+                            // await SubscriptionHelper.checkSubscriptionAndNavigate(
+                            //   context: context,
+                            //   destinationScreen: const UserSearchScreenComprehensive(),
+                            //   screenName: 'User Search',
+                            // );
+                            
+                            // PAYWALL DISABLED - Navigate directly
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const UserSearchScreenComprehensive(),
+                              ),
                             );
                           },
                         ),

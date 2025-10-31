@@ -120,11 +120,20 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                           // FIND A MENTOR Button
                           _buildActionButton(
                             text: 'FIND A MENTOR',
-                            onTap: () async {
-                              await SubscriptionHelper.checkSubscriptionAndNavigate(
-                                context: context,
-                                destinationScreen: const MentoringConnectionsScreen(),
-                                screenName: 'Mentoring Connections',
+                            onTap: () {
+                              // COMMENTED OUT: Subscription check
+                              // await SubscriptionHelper.checkSubscriptionAndNavigate(
+                              //   context: context,
+                              //   destinationScreen: const MentoringConnectionsScreen(),
+                              //   screenName: 'Mentoring Connections',
+                              // );
+                              
+                              // PAYWALL DISABLED - Navigate directly
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const MentoringConnectionsScreen(),
+                                ),
                               );
                             },
                           ),
@@ -134,11 +143,20 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                           // GROW YOUR NETWORK Button
                           _buildActionButton(
                             text: 'GROW YOUR NETWORK',
-                            onTap: () async {
-                              await SubscriptionHelper.checkSubscriptionAndNavigate(
-                                context: context,
-                                destinationScreen: const NetworkingConnectionsScreen(),
-                                screenName: 'Networking Connections',
+                            onTap: () {
+                              // COMMENTED OUT: Subscription check
+                              // await SubscriptionHelper.checkSubscriptionAndNavigate(
+                              //   context: context,
+                              //   destinationScreen: const NetworkingConnectionsScreen(),
+                              //   screenName: 'Networking Connections',
+                              // );
+                              
+                              // PAYWALL DISABLED - Navigate directly
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const NetworkingConnectionsScreen(),
+                                ),
                               );
                             },
                           ),
@@ -148,11 +166,20 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                           // TODAY'S MATCHES Button
                           _buildActionButton(
                             text: "TODAY'S MATCHES",
-                            onTap: () async {
-                              await SubscriptionHelper.checkSubscriptionAndNavigate(
-                                context: context,
-                                destinationScreen: const TodaysMatchesScreen(),
-                                screenName: "Today's Matches",
+                            onTap: () {
+                              // COMMENTED OUT: Subscription check
+                              // await SubscriptionHelper.checkSubscriptionAndNavigate(
+                              //   context: context,
+                              //   destinationScreen: const TodaysMatchesScreen(),
+                              //   screenName: "Today's Matches",
+                              // );
+                              
+                              // PAYWALL DISABLED - Navigate directly
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const TodaysMatchesScreen(),
+                                ),
                               );
                             },
                           ),

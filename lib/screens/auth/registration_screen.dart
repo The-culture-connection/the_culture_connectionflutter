@@ -420,9 +420,14 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
+    return GestureDetector(
+      onTap: () {
+        // Dismiss keyboard when tapping outside
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
           // Background
           Container(
             decoration: const BoxDecoration(
@@ -606,6 +611,7 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -710,6 +716,10 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
               label: 'Age',
               icon: Icons.cake,
               keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) {
+                FocusScope.of(context).unfocus();
+              },
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter your age';
@@ -720,6 +730,20 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 8),
+            // Test button to dismiss keyboard (can be removed after testing)
+            TextButton(
+              onPressed: () {
+                FocusScope.of(context).unfocus();
+              },
+              child: Text(
+                'Dismiss Keyboard (Test)',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 12,
+                ),
+              ),
             ),
           ],
         ),
@@ -1143,11 +1167,15 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
     bool obscureText = false,
     String? Function(String?)? validator,
     Widget? suffixIcon,
+    TextInputAction? textInputAction,
+    void Function(String)? onFieldSubmitted,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onFieldSubmitted,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,

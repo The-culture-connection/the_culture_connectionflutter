@@ -53,8 +53,16 @@ class _ProfileCardViewState extends State<ProfileCardView> {
                 // Profile Info Section
                 _buildProfileInfo(),
                 
-                // Skills Section
-                if (widget.profile.skills.isNotEmpty) _buildSkillsSection(),
+                // Skills Offering Section
+                if (widget.profile.skillsOffering.isNotEmpty) _buildSkillsOfferingSection(),
+                
+                // Skills Seeking Section
+                if (widget.profile.skillsSeeking.isNotEmpty) _buildSkillsSeekingSection(),
+                
+                // Skills Section (legacy - if old format exists)
+                if (widget.profile.skills.isNotEmpty && 
+                    widget.profile.skillsOffering.isEmpty && 
+                    widget.profile.skillsSeeking.isEmpty) _buildSkillsSection(),
                 
                 // Swipe Indicator
                 _buildSwipeIndicator(),
@@ -237,6 +245,114 @@ class _ProfileCardViewState extends State<ProfileCardView> {
                 ),
               ],
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkillsOfferingSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.check_circle,
+                size: 18,
+                color: Color(0xFFFF7E00),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'Skills Offering',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: widget.profile.skillsOffering.take(8).map((skill) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFFF7E00).withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                skill,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            )).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkillsSeekingSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.search,
+                size: 18,
+                color: Color(0xFFFF7E00),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'Skills Seeking',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: widget.profile.skillsSeeking.take(8).map((skill) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFFF7E00).withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                skill,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            )).toList(),
           ),
         ],
       ),

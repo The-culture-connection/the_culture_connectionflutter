@@ -3,19 +3,24 @@
   "description": "Cloud Functions for Firebase",
   "scripts": {
     "lint": "echo 'Linting skipped'",
-    "build": "echo 'Build skipped'",
-    "serve": "firebase emulators:start --only functions",
-    "shell": "firebase functions:shell",
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
-    "deploy": "firebase deploy --only functions"
+    "deploy": "npm run build && firebase deploy --only functions"
   },
   "engines": {
-    "node": "18"
+    "node": "20"
   },
-  "main": "simple-vote-results.js",
+  "main": "lib/index.js",
   "dependencies": {
+    "csv-parse": "^5.6.0",
     "firebase-admin": "^11.8.0",
-    "firebase-functions": "^4.3.1"
+    "firebase-functions": "^4.3.1",
+    "@types/csv-parse": "^1.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
   },
   "private": true
 }
