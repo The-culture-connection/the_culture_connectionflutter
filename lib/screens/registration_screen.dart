@@ -138,6 +138,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       'Cleaning / Maintenance',
       'Landscaping / Sustainability',
     ],
+    'Cosmetology': [
+      'Hair Care & Styling',
+      'Nail Care',
+      'Makeup & Cosmetics',
+      'Skin Care & Aesthetics',
+      'Body & Spa Services',
+      'Wellness & Image',
+      'Beauty Product & Brand Services',
+    ],
   };
 
   @override
