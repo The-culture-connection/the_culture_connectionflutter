@@ -924,7 +924,7 @@ export const notifyOnNewMessage = onDocumentCreated(
     }
     const messageData = snap.data();
     const senderId = messageData.senderId;
-    const chatRoomId = event.params.chatRoomId;
+    const chatRoomId = event.params.chatRoomId as string;
     
     try {
       // Get chat room participants
@@ -987,7 +987,7 @@ export const notifyOnNewDateProposal = onDocumentCreated(
     }
     const proposalData = snap.data();
     const proposerId = proposalData.proposerId;
-    const chatRoomId = event.params.chatRoomId;
+    const chatRoomId = event.params.chatRoomId as string;
     
     try {
       // Get chat room participants
@@ -1026,7 +1026,7 @@ export const notifyOnNewDateProposal = onDocumentCreated(
         data: {
           type: "date_proposal",
           chatRoomId: chatRoomId,
-          proposalId: event.params.proposalId,
+          proposalId: event.params.proposalId as string,
           proposerId: proposerId,
         },
       };
@@ -1035,6 +1035,159 @@ export const notifyOnNewDateProposal = onDocumentCreated(
       logger.info(`Date proposal notification sent to ${recipientId}`);
     } catch (error) {
       logger.error("Error sending date proposal notification:", error);
+    }
+  });
+
+/**
+ * Send notification for new match (v2)
+ */
+export const notifyOnNewMatch = onDocumentCreated(
+  "Matches/{matchId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
+    
+    const matchData = snap.data();
+    const user1Id = matchData.user1Id;
+    const user2Id = matchData.user2Id;
+    
+    try {
+      // Send notifications to both users
+      await sendMatchNotificationHelper(user1Id, user2Id);
+      logger.info(`Match notifications sent to ${user1Id} and ${user2Id}`);
+    } catch (error) {
+      logger.error("Error sending match notifications:", error);
+    }
+  });
+
+/**
+ * Send notification for new connection request (v2)
+ */
+export const notifyOnNewConnectionRequest = onDocumentCreated(
+  "Connects/{connectionId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
+    
+    const connectionData = snap.data();
+    const fromUserId = connectionData.fromUserId;
+    const toUserId = connectionData.toUserId;
+    
+    try {
+      await sendConnectionRequestNotification(fromUserId, toUserId);
+      logger.info(
+        `Connection request notification sent from ${fromUserId} to ${toUserId}`,
+      );
+    } catch (error) {
+      logger.error("Error sending connection request notification:", error);
+    }
+  });
+
+/**
+ * Send notification for new post (v2)
+ */
+export const notifyNewPost = onDocumentCreated(
+  "posts/{postId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
+    
+    const postData = snap.data();
+    const postTitle = postData.title || "New Post";
+    
+    try {
+      // Send to general topic
+      await admin.messaging().send({
+        topic: "general",
+        notification: {
+          title: "New Post! 📰",
+          body: postTitle,
+        },
+        data: {
+          type: "new_post",
+          postId: event.params.postId as string,
+        },
+      });
+      logger.info(`New post notification sent for: ${postTitle}`);
+    } catch (error) {
+      logger.error("Error sending new post notification:", error);
+    }
+  });
+
+/**
+ * Send notification for new series post (v2)
+ */
+export const notifyNewSeriesPost = onDocumentCreated(
+  "series/{postId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
+    
+    const postData = snap.data();
+    const postTitle = postData.title || "New Series Post";
+    
+    try {
+      // Send to general topic
+      await admin.messaging().send({
+        topic: "general",
+        notification: {
+          title: "New Series Post! 🎬",
+          body: postTitle,
+        },
+        data: {
+          type: "new_series_post",
+          postId: event.params.postId as string,
+        },
+      });
+      logger.info(`New series post notification sent for: ${postTitle}`);
+    } catch (error) {
+      logger.error("Error sending new series post notification:", error);
+    }
+  });
+
+/**
+ * Send notification for upcoming event (v2)
+ */
+export const notifyUpcomingEvent = onDocumentCreated(
+  "events/{eventId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
+    
+    const eventData = snap.data();
+    const eventTitle = eventData.title || "Upcoming Event";
+    
+    try {
+      // Send to general topic
+      await admin.messaging().send({
+        topic: "general",
+        notification: {
+          title: "Upcoming Event! 🎉",
+          body: `${eventTitle} - Don't miss out!`,
+        },
+        data: {
+          type: "upcoming_event",
+          eventId: event.params.eventId as string,
+        },
+      });
+      logger.info(`Upcoming event notification sent for: ${eventTitle}`);
+    } catch (error) {
+      logger.error("Error sending upcoming event notification:", error);
     }
   });
 
