@@ -9,6 +9,7 @@
 
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onRequest, onCall} from "firebase-functions/v2/https";
+import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import {parse} from "csv-parse/sync";
@@ -911,16 +912,19 @@ export const notifyOnNewMatch = functions.firestore
 */
 
 /**
- * Send notification for new message
- * NOTE: Commented out - using v1 API. Migrate to v2 if needed.
+ * Send notification for new message (v2)
  */
-/*
-export const notifyOnNewMessage = functions.firestore
-  .document("ChatRooms/{chatRoomId}/Messages/{messageId}")
-  .onCreate(async (snap: any, context: any) => {
+export const notifyOnNewMessage = onDocumentCreated(
+  "ChatRooms/{chatRoomId}/Messages/{messageId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
     const messageData = snap.data();
     const senderId = messageData.senderId;
-    const chatRoomId = context.params.chatRoomId;
+    const chatRoomId = event.params.chatRoomId;
     
     try {
       // Get chat room participants
@@ -969,19 +973,21 @@ export const notifyOnNewMessage = functions.firestore
       logger.error("Error sending message notification:", error);
     }
   });
-*/
 
 /**
- * Send notification for new date proposal
- * NOTE: Commented out - using v1 API. Migrate to v2 if needed.
+ * Send notification for new date proposal (v2)
  */
-/*
-export const notifyOnNewDateProposal = functions.firestore
-  .document("ChatRooms/{chatRoomId}/DateProposals/{proposalId}")
-  .onCreate(async (snap: any, context: any) => {
+export const notifyOnNewDateProposal = onDocumentCreated(
+  "ChatRooms/{chatRoomId}/DateProposals/{proposalId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
     const proposalData = snap.data();
     const proposerId = proposalData.proposerId;
-    const chatRoomId = context.params.chatRoomId;
+    const chatRoomId = event.params.chatRoomId;
     
     try {
       // Get chat room participants
@@ -1020,7 +1026,7 @@ export const notifyOnNewDateProposal = functions.firestore
         data: {
           type: "date_proposal",
           chatRoomId: chatRoomId,
-          proposalId: context.params.proposalId,
+          proposalId: event.params.proposalId,
           proposerId: proposerId,
         },
       };
@@ -1031,7 +1037,6 @@ export const notifyOnNewDateProposal = functions.firestore
       logger.error("Error sending date proposal notification:", error);
     }
   });
-*/
 
 // ======= BUSINESS DATA PROCESSING FUNCTION =======
 /**
