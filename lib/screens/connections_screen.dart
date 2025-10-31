@@ -9,8 +9,7 @@ import 'newsfeed_screen.dart'; // NewsFeedScreen import
 import 'mentorship_connections_screen.dart';
 import 'networking_connections_screen.dart';
 import 'todays_matches_screen.dart';
-import 'voting_screen.dart';
-import 'admin_voting_results_screen.dart';
+import 'coming_soon_screen.dart';
 
 /// ConnectionsScreen - Equivalent to iOS ConnectionsView.swift
 class ConnectionsScreen extends StatefulWidget {
@@ -188,14 +187,16 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> {
                           
                           const SizedBox(height: 16),
                           
-                          // LIVE VOTING Button
+                          // THE REAL BLACK FRIDAY Button
                           _buildActionButton(
-                            text: "LIVE VOTING",
+                            text: "THE REAL BLACK FRIDAY",
                             onTap: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const VotingScreen(),
+                                  builder: (context) => const ComingSoonScreen(
+                                    featureName: 'The Real Black Friday',
+                                  ),
                                 ),
                               );
                             },

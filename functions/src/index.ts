@@ -9,6 +9,7 @@
 
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onRequest, onCall} from "firebase-functions/v2/https";
+import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import {parse} from "csv-parse/sync";
@@ -911,16 +912,19 @@ export const notifyOnNewMatch = functions.firestore
 */
 
 /**
- * Send notification for new message
- * NOTE: Commented out - using v1 API. Migrate to v2 if needed.
+ * Send notification for new message (v2)
  */
-/*
-export const notifyOnNewMessage = functions.firestore
-  .document("ChatRooms/{chatRoomId}/Messages/{messageId}")
-  .onCreate(async (snap: any, context: any) => {
+export const notifyOnNewMessage = onDocumentCreated(
+  "ChatRooms/{chatRoomId}/Messages/{messageId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
     const messageData = snap.data();
     const senderId = messageData.senderId;
-    const chatRoomId = context.params.chatRoomId;
+    const chatRoomId = event.params.chatRoomId as string;
     
     try {
       // Get chat room participants
@@ -969,19 +973,21 @@ export const notifyOnNewMessage = functions.firestore
       logger.error("Error sending message notification:", error);
     }
   });
-*/
 
 /**
- * Send notification for new date proposal
- * NOTE: Commented out - using v1 API. Migrate to v2 if needed.
+ * Send notification for new date proposal (v2)
  */
-/*
-export const notifyOnNewDateProposal = functions.firestore
-  .document("ChatRooms/{chatRoomId}/DateProposals/{proposalId}")
-  .onCreate(async (snap: any, context: any) => {
+export const notifyOnNewDateProposal = onDocumentCreated(
+  "ChatRooms/{chatRoomId}/DateProposals/{proposalId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
     const proposalData = snap.data();
     const proposerId = proposalData.proposerId;
-    const chatRoomId = context.params.chatRoomId;
+    const chatRoomId = event.params.chatRoomId as string;
     
     try {
       // Get chat room participants
@@ -1020,7 +1026,7 @@ export const notifyOnNewDateProposal = functions.firestore
         data: {
           type: "date_proposal",
           chatRoomId: chatRoomId,
-          proposalId: context.params.proposalId,
+          proposalId: event.params.proposalId as string,
           proposerId: proposerId,
         },
       };
@@ -1031,7 +1037,159 @@ export const notifyOnNewDateProposal = functions.firestore
       logger.error("Error sending date proposal notification:", error);
     }
   });
-*/
+
+/**
+ * Send notification for new match (v2)
+ */
+export const notifyOnNewMatch = onDocumentCreated(
+  "Matches/{matchId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
+    
+    const matchData = snap.data();
+    const user1Id = matchData.user1Id;
+    const user2Id = matchData.user2Id;
+    
+    try {
+      // Send notifications to both users
+      await sendMatchNotificationHelper(user1Id, user2Id);
+      logger.info(`Match notifications sent to ${user1Id} and ${user2Id}`);
+    } catch (error) {
+      logger.error("Error sending match notifications:", error);
+    }
+  });
+
+/**
+ * Send notification for new connection request (v2)
+ */
+export const notifyOnNewConnectionRequest = onDocumentCreated(
+  "Connects/{connectionId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
+    
+    const connectionData = snap.data();
+    const fromUserId = connectionData.fromUserId;
+    const toUserId = connectionData.toUserId;
+    
+    try {
+      await sendConnectionRequestNotification(fromUserId, toUserId);
+      logger.info(
+        `Connection request notification sent from ${fromUserId} to ${toUserId}`,
+      );
+    } catch (error) {
+      logger.error("Error sending connection request notification:", error);
+    }
+  });
+
+/**
+ * Send notification for new post (v2)
+ */
+export const notifyNewPost = onDocumentCreated(
+  "posts/{postId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
+    
+    const postData = snap.data();
+    const postTitle = postData.title || "New Post";
+    
+    try {
+      // Send to general topic
+      await admin.messaging().send({
+        topic: "general",
+        notification: {
+          title: "New Post! 📰",
+          body: postTitle,
+        },
+        data: {
+          type: "new_post",
+          postId: event.params.postId as string,
+        },
+      });
+      logger.info(`New post notification sent for: ${postTitle}`);
+    } catch (error) {
+      logger.error("Error sending new post notification:", error);
+    }
+  });
+
+/**
+ * Send notification for new series post (v2)
+ */
+export const notifyNewSeriesPost = onDocumentCreated(
+  "series/{postId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
+    
+    const postData = snap.data();
+    const postTitle = postData.title || "New Series Post";
+    
+    try {
+      // Send to general topic
+      await admin.messaging().send({
+        topic: "general",
+        notification: {
+          title: "New Series Post! 🎬",
+          body: postTitle,
+        },
+        data: {
+          type: "new_series_post",
+          postId: event.params.postId as string,
+        },
+      });
+      logger.info(`New series post notification sent for: ${postTitle}`);
+    } catch (error) {
+      logger.error("Error sending new series post notification:", error);
+    }
+  });
+
+/**
+ * Send notification for upcoming event (v2)
+ */
+export const notifyUpcomingEvent = onDocumentCreated(
+  "events/{eventId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      logger.warn("No data found in document");
+      return;
+    }
+    
+    const eventData = snap.data();
+    const eventTitle = eventData.title || "Upcoming Event";
+    
+    try {
+      // Send to general topic
+      await admin.messaging().send({
+        topic: "general",
+        notification: {
+          title: "Upcoming Event! 🎉",
+          body: `${eventTitle} - Don't miss out!`,
+        },
+        data: {
+          type: "upcoming_event",
+          eventId: event.params.eventId as string,
+        },
+      });
+      logger.info(`Upcoming event notification sent for: ${eventTitle}`);
+    } catch (error) {
+      logger.error("Error sending upcoming event notification:", error);
+    }
+  });
 
 // ======= BUSINESS DATA PROCESSING FUNCTION =======
 /**

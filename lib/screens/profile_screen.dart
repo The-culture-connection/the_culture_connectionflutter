@@ -14,6 +14,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _profileData;
   bool _isLoading = true;
   String? _errorMessage;
+  double _profileCompletion = 0.0;
 
   @override
   void initState() {
@@ -33,6 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (doc.exists && mounted) {
           setState(() {
             _profileData = doc.data();
+            _profileCompletion = _calculateProfileCompletion(doc.data() ?? {});
             _isLoading = false;
             _errorMessage = null;
           });
@@ -129,25 +131,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         child: Column(
                           children: [
-                            // Profile Picture
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundColor: const Color(0xFFFF7E00),
-                              backgroundImage: _profileData!['photoURL'] != null
-                                  ? NetworkImage(_profileData!['photoURL'])
-                                  : null,
-                              child: _profileData!['photoURL'] == null
-                                  ? Text(
-                                      _getInitials(),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : null,
+                            // Profile Picture with Completion Meter
+                            Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Circular progress indicator (background)
+                                SizedBox(
+                                  width: 116,
+                                  height: 116,
+                                  child: CircularProgressIndicator(
+                                    value: 1.0,
+                                    strokeWidth: 8,
+                                    backgroundColor: Colors.transparent,
+                                    valueColor: const AlwaysStoppedAnimation<Color>(
+                                      Color(0xFF2d2d2e),
+                                    ),
+                                  ),
+                                ),
+                                // Circular progress indicator (completion)
+                                SizedBox(
+                                  width: 116,
+                                  height: 116,
+                                  child: CircularProgressIndicator(
+                                    value: _profileCompletion,
+                                    strokeWidth: 8,
+                                    backgroundColor: Colors.transparent,
+                                    valueColor: const AlwaysStoppedAnimation<Color>(
+                                      Color(0xFF685BC6), // Purple color
+                                    ),
+                                  ),
+                                ),
+                                // Profile Picture
+                                CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: const Color(0xFFFF7E00),
+                                  backgroundImage: _profileData!['photoURL'] != null
+                                      ? NetworkImage(_profileData!['photoURL'])
+                                      : null,
+                                  child: _profileData!['photoURL'] == null
+                                      ? Text(
+                                          _getInitials(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 8),
+                            // Completion percentage
+                            Text(
+                              '${(_profileCompletion * 100).toInt()}% Complete',
+                              style: const TextStyle(
+                                color: Color(0xFF685BC6),
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             
                             // Name and Email
                             Text(
@@ -385,5 +429,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     }
+  }
+
+  double _calculateProfileCompletion(Map<String, dynamic> profileData) {
+    // List of important profile fields to check
+    final List<String> importantFields = [
+      'Full Name',
+      'photoURL',
+      'Age',
+      'Bio',
+      'Job Title',
+      'Industry',
+      'University',
+      'Major',
+      'Experience Level',
+      'Skills Offering',
+      'Skills Seeking',
+      'purposes',
+      'experienceLevel',
+      'location',
+    ];
+    
+    int filledFields = 0;
+    
+    for (final field in importantFields) {
+      final value = profileData[field];
+      
+      // Check if field has meaningful content
+      if (value != null) {
+        if (value is String && value.trim().isNotEmpty) {
+          filledFields++;
+        } else if (value is List && value.isNotEmpty) {
+          filledFields++;
+        } else if (value is Map && value.isNotEmpty) {
+          filledFields++;
+        } else if (value is! String && value is! List && value is! Map) {
+          // For other types (int, bool, etc.), just check if not null
+          filledFields++;
+        }
+      }
+    }
+    
+    return filledFields / importantFields.length;
   }
 }

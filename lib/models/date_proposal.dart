@@ -39,7 +39,7 @@ class DateProposal {
       details: data['details'] ?? '',
       date: (data['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
       place: data['place'] ?? 'Unknown',
-      timestamp: (data['timestamp'] as Timestamp).toDate(),
+      timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
       status: data['status'] ?? 'Pending',
     );
   }
