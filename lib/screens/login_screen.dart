@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_button.dart';
+import '../services/auth_service.dart';
 import 'registration_screen.dart';
 
 /// LoginScreen - Equivalent to iOS LoginView.swift
@@ -16,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -58,6 +61,58 @@ class _LoginScreenState extends State<LoginScreen> {
         _errorMessage = "An unexpected error occurred: $e";
       });
       print('Unexpected Error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    print('🔐 Starting Google sign in...');
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      print('📱 Calling Google Sign In service...');
+      final userCredential = await _authService.signInWithGoogle();
+      print('✅ Google sign in successful! User: ${userCredential.user?.email}');
+      
+      // Check if user profile exists in Firestore
+      final user = userCredential.user;
+      if (user != null) {
+        final profileDoc = await FirebaseFirestore.instance
+            .collection('Profiles')
+            .doc(user.uid)
+            .get();
+        
+        // If profile doesn't exist, create a basic one
+        if (!profileDoc.exists) {
+          print('📝 Creating new profile for Google user...');
+          await FirebaseFirestore.instance
+              .collection('Profiles')
+              .doc(user.uid)
+              .set({
+            'Full Name': user.displayName ?? '',
+            'email': user.email ?? '',
+            'photoURL': user.photoURL ?? '',
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          print('✅ Profile created successfully');
+        }
+      }
+      
+      // Navigation will be handled by the ContentView auth state listener
+    } on Exception catch (e) {
+      setState(() {
+        _errorMessage = "Failed to sign in with Google: ${e.toString()}";
+      });
+      print('❌ Google Sign In Error: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -214,6 +269,64 @@ class _LoginScreenState extends State<LoginScreen> {
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
                                     decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                              
+                              const SizedBox(height: 16),
+                              
+                              // Divider
+                              Row(
+                                children: [
+                                  const Expanded(child: Divider(color: Colors.white54)),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    child: Text(
+                                      'OR',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.7),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  const Expanded(child: Divider(color: Colors.white54)),
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 16),
+                              
+                              // Google Sign In Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: _isLoading ? null : _signInWithGoogle,
+                                  icon: Image.asset(
+                                    'assets/images/google_logo.png',
+                                    height: 24,
+                                    width: 24,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(
+                                        Icons.login,
+                                        color: Colors.white,
+                                        size: 24,
+                                      );
+                                    },
+                                  ),
+                                  label: const Text(
+                                    'Sign in with Google',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    backgroundColor: Colors.white.withOpacity(0.1),
+                                    side: const BorderSide(color: Colors.white54, width: 1.5),
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
                                 ),
                               ),
