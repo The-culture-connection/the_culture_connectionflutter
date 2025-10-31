@@ -234,12 +234,50 @@ class _UserSearchScreenComprehensiveState extends ConsumerState<UserSearchScreen
           mainAxisSize: MainAxisSize.min,
           children: [
           // Name Search
-          _buildSearchField(
-            label: 'Full Name',
-            hint: 'Enter person\'s full name',
-            value: _nameSearch,
-            onChanged: (value) => setState(() => _nameSearch = value),
-            icon: Icons.person,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Full Name',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Inter',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _nameSearch = value.trim();
+                    print('UserSearchScreenComprehensive: _nameSearch updated to: "$_nameSearch"');
+                  });
+                },
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Enter person\'s full name',
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                  prefixIcon: const Icon(Icons.person, color: AppColors.electricOrange),
+                  filled: true,
+                  fillColor: Colors.black.withOpacity(0.3),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.deepPurple.withOpacity(0.3)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: AppColors.deepPurple.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.electricOrange, width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+              ),
+            ],
           ),
           
           const SizedBox(height: 20),
@@ -840,6 +878,7 @@ class _UserSearchScreenComprehensiveState extends ConsumerState<UserSearchScreen
   void _clearFilters() {
     setState(() {
       _nameSearch = '';
+      _searchController.clear();
       _selectedSkillsOfferingCategory = '';
       _selectedSkillsSeekingCategory = '';
       _selectedExperienceLevel = '';
@@ -859,6 +898,10 @@ class _UserSearchScreenComprehensiveState extends ConsumerState<UserSearchScreen
 
   Future<void> _performSearch() async {
     print('UserSearchScreenComprehensive: _performSearch called');
+    
+    // Sync controller value to _nameSearch in case it wasn't updated
+    _nameSearch = _searchController.text.trim();
+    print('UserSearchScreenComprehensive: Search criteria - Name: "$_nameSearch", Skills Offering: "$_selectedSkillsOfferingCategory", Skills Seeking: "$_selectedSkillsSeekingCategory", Experience: "$_selectedExperienceLevel", Job Level: "$_selectedJobLevel", Purpose: "$_selectedPurpose"');
     
     if (_nameSearch.isEmpty && _selectedSkillsOfferingCategory.isEmpty && _selectedSkillsSeekingCategory.isEmpty && _selectedExperienceLevel.isEmpty && _selectedJobLevel.isEmpty && _selectedPurpose.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -881,14 +924,37 @@ class _UserSearchScreenComprehensiveState extends ConsumerState<UserSearchScreen
       print('UserSearchScreenComprehensive: Firestore service obtained');
       
       print('UserSearchScreenComprehensive: Calling getAllUsers...');
-      final profiles = await firestoreService.getAllUsers(limit: 100).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          print('UserSearchScreenComprehensive: Timeout occurred');
-          throw Exception('Loading users timed out');
-        },
-      );
-      print('UserSearchScreenComprehensive: Got ${profiles.length} users');
+      // Use Firestore query for name search if only name is provided, otherwise get all users
+      List<UserProfile> profiles;
+      if (_nameSearch.isNotEmpty && 
+          _selectedSkillsOfferingCategory.isEmpty && 
+          _selectedSkillsSeekingCategory.isEmpty && 
+          _selectedExperienceLevel.isEmpty && 
+          _selectedJobLevel.isEmpty && 
+          _selectedPurpose.isEmpty) {
+        // Use Firestore name search for better performance
+        print('UserSearchScreenComprehensive: Using Firestore name search query');
+        final stream = firestoreService.searchUsersByName(_nameSearch);
+        final snapshot = await stream.first.timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            print('UserSearchScreenComprehensive: Timeout occurred');
+            throw Exception('Loading users timed out');
+          },
+        );
+        profiles = snapshot;
+        print('UserSearchScreenComprehensive: Got ${profiles.length} users from name search');
+      } else {
+        // For complex searches, get all users (no limit or very high limit)
+        profiles = await firestoreService.getAllUsers(limit: 10000).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            print('UserSearchScreenComprehensive: Timeout occurred');
+            throw Exception('Loading users timed out');
+          },
+        );
+        print('UserSearchScreenComprehensive: Got ${profiles.length} users');
+      }
       
       // Filter profiles based on search criteria
       List<UserProfile> matches = profiles.where((profile) {

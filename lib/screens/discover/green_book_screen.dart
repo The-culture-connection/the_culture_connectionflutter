@@ -713,6 +713,22 @@ class _GreenBookScreenState extends State<GreenBookScreen> {
           
           const SizedBox(height: 12),
           
+          // Business Description
+          if (business.description.isNotEmpty) ...[
+            Text(
+              business.description,
+              style: TextStyle(
+                fontFamily: 'Inter-VariableFont_slnt,wght',
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.8),
+                height: 1.4,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+          ],
+          
           // Business Details
           Column(
             children: [

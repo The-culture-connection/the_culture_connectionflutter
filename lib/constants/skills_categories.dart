@@ -85,6 +85,15 @@ class SkillsCategories {
       'Cleaning / Maintenance',
       'Landscaping / Sustainability',
     ],
+    '💅 Cosmetology': [
+      'Hair Care & Styling',
+      'Nail Care',
+      'Makeup & Cosmetics',
+      'Skin Care & Aesthetics',
+      'Body & Spa Services',
+      'Wellness & Image',
+      'Beauty Product & Brand Services',
+    ],
   };
 
   /// Get all category names

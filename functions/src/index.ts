@@ -9,6 +9,7 @@
 
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onRequest, onCall} from "firebase-functions/v2/https";
+import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import {parse} from "csv-parse/sync";
@@ -837,32 +838,98 @@ export const handleUserConnection = onCall(async (request) => {
 
 /**
  * Send notification for new connection request
- * NOTE: Commented out - using v1 API. Migrate to v2 if needed.
- * Uncomment and update to use firebase-functions/v2/firestore if needed
+ * Using v2 API with onDocumentCreated
  */
-/* 
-export const notifyOnNewConnectionRequest = functions.firestore
-  .document("Connects/{connectionId}")
-  .onCreate(async (snap: any, context: any) => {
-    const connectionData = snap.data();
+export const notifyOnNewConnectionRequest = onDocumentCreated(
+  {
+    document: "Connects/{connectionId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    logger.info("=== notifyOnNewConnectionRequest TRIGGERED ===");
+    logger.info(`Connection ID: ${event.params.connectionId}`);
+    
+    const connectionData = event.data?.data();
+    
+    if (!connectionData) {
+      logger.error("No connection data found in event.data");
+      return;
+    }
+    
+    logger.info("Connection data:", JSON.stringify(connectionData, null, 2));
+    
     const toUserId = connectionData.toUserId;
+    const fromUserId = connectionData.fromUserId;
+    
+    if (!toUserId || !fromUserId) {
+      logger.error("Missing required fields in connection data");
+      logger.error(`toUserId: ${toUserId}, fromUserId: ${fromUserId}`);
+      return;
+    }
+    
+    logger.info(`Processing connection request: ${fromUserId} -> ${toUserId}`);
     
     try {
-      // Get user's FCM token
-      const userDoc = await db.collection("Profiles").doc(toUserId).get();
-      const userData = userDoc.data();
-      const fcmToken = userData?.fcmToken;
+      // Get recipient's FCM token
+      logger.info(`Fetching recipient profile for userId: ${toUserId}`);
+      const recipientDoc = await db.collection("Profiles").doc(toUserId).get();
       
-      if (!fcmToken) {
-        logger.warn(`No FCM token found for user ${toUserId}`);
+      if (!recipientDoc.exists) {
+        logger.error(`Recipient profile not found for userId: ${toUserId}`);
         return;
       }
       
-      // Get sender's name
-      const senderDoc = await db.collection("Profiles").doc(connectionData.fromUserId).get();
-      const senderData = senderDoc.data();
-      const senderName = senderData?.["Full Name"] || "Someone";
+      const recipientData = recipientDoc.data();
+      logger.info(`Recipient profile found. Available fields: ${Object.keys(recipientData || {}).join(", ")}`);
       
+      // Check for FCM token - handle null, undefined, or empty string
+      const fcmTokenValue = recipientData?.["fcmToken"] || recipientData?.["fcm_token"];
+      const fcmToken = (fcmTokenValue && typeof fcmTokenValue === "string" && fcmTokenValue.trim().length > 0) 
+        ? fcmTokenValue.trim() 
+        : null;
+      
+      logger.info(`FCM token value: ${fcmTokenValue}`);
+      logger.info(`FCM token after validation: ${fcmToken ? "VALID" : "INVALID/NULL/EMPTY"}`);
+      
+      // Get sender's name first
+      logger.info(`Fetching sender profile for userId: ${fromUserId}`);
+      const senderDoc = await db.collection("Profiles").doc(fromUserId).get();
+      
+      if (!senderDoc.exists) {
+        logger.warn(`Sender profile not found for userId: ${fromUserId}`);
+      }
+      
+      const senderData = senderDoc.data();
+      const senderName = senderData?.["Full Name"] || senderData?.["fullName"] || "Someone";
+      
+      logger.info(`Sender name: ${senderName}`);
+      
+      if (!fcmToken) {
+        logger.warn(`No valid FCM token found for user ${toUserId}, falling back to general topic`);
+        try {
+          const fallbackMessage = {
+            topic: "general",
+            notification: {
+              title: "New Connection Request",
+              body: `${senderName} wants to connect with you!`,
+            },
+            data: {
+              type: "connection_request",
+              connectionId: event.params.connectionId,
+              fromUserId: fromUserId,
+              targetUserId: toUserId,
+            },
+          };
+          const response = await admin.messaging().send(fallbackMessage);
+          logger.info(`✅ Fallback notification sent to general topic: ${response}`);
+        } catch (fallbackError: any) {
+          logger.error("❌ Error sending fallback notification:", fallbackError);
+          logger.error(`Fallback error details: ${JSON.stringify(fallbackError, null, 2)}`);
+        }
+        return;
+      }
+      
+      // Send direct notification with token
       const message = {
         token: fcmToken,
         notification: {
@@ -871,18 +938,49 @@ export const notifyOnNewConnectionRequest = functions.firestore
         },
         data: {
           type: "connection_request",
-          connectionId: context.params.connectionId,
-          fromUserId: connectionData.fromUserId,
+          connectionId: event.params.connectionId,
+          fromUserId: fromUserId,
+        },
+        android: {
+          notification: {
+            icon: "ic_notification",
+            color: "#FF7E00",
+            sound: "default",
+          },
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: "default",
+              badge: 1,
+            },
+          },
         },
       };
       
-      await admin.messaging().send(message);
-      logger.info(`Connection request notification sent to ${toUserId}`);
-    } catch (error) {
-      logger.error("Error sending connection request notification:", error);
+      logger.info("Sending direct notification to user:", {
+        recipientId: toUserId,
+        senderId: fromUserId,
+        senderName: senderName,
+        hasToken: !!fcmToken,
+      });
+      
+      const response = await admin.messaging().send(message);
+      logger.info(`✅ Connection request notification sent successfully to ${toUserId}`);
+      logger.info(`FCM Response: ${response}`);
+    } catch (error: any) {
+      logger.error("❌ Error sending connection request notification:");
+      logger.error(`Error message: ${error.message}`);
+      logger.error(`Error code: ${error.code}`);
+      logger.error(`Error stack: ${error.stack}`);
+      
+      // Log the full error object
+      if (error.errorInfo) {
+        logger.error(`Error info: ${JSON.stringify(error.errorInfo, null, 2)}`);
+      }
     }
-  });
-*/
+  },
+);
 
 /**
  * Send notification for new match

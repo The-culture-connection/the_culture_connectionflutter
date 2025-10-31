@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'firestore_service.dart';
 
@@ -11,7 +12,7 @@ class MessagingService {
   /// Initialize messaging
   Future<void> initialize() async {
     // Request permission
-    await requestPermission();
+    final settings = await requestPermission();
     
     // Initialize local notifications
     await _initializeLocalNotifications();
@@ -22,10 +23,20 @@ class MessagingService {
       print('FCM Token: $token');
     }
     
+    // Subscribe to general topic when permission is granted
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      await subscribeToTopic('general');
+      print('Subscribed to general topic');
+    }
+    
     // Listen to token refresh
-    _messaging.onTokenRefresh.listen((newToken) {
+    _messaging.onTokenRefresh.listen((newToken) async {
       print('FCM Token refreshed: $newToken');
-      // Update token in Firestore
+      // Update token in Firestore and subscribe to general topic
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        await updateUserToken(currentUser.uid);
+      }
     });
     
     // Handle foreground messages
@@ -37,9 +48,9 @@ class MessagingService {
     // Handle notification taps
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
   }
-
-  /// Request notification permission
-  Future<void> requestPermission() async {
+  
+  /// Request notification permission and return the result
+  Future<NotificationSettings> requestPermission() async {
     final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
@@ -49,11 +60,16 @@ class MessagingService {
     
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       print('User granted permission');
+      // Subscribe to general topic
+      await subscribeToTopic('general');
     } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
       print('User granted provisional permission');
+      await subscribeToTopic('general');
     } else {
       print('User declined or has not accepted permission');
     }
+    
+    return settings;
   }
 
   /// Get FCM token
@@ -66,6 +82,9 @@ class MessagingService {
     final token = await getToken();
     if (token != null) {
       await _firestoreService.updateUserProfile(userId, {'fcmToken': token});
+      // Subscribe to general topic when token is updated
+      await subscribeToTopic('general');
+      print('User subscribed to general topic');
     }
   }
 

@@ -44,15 +44,23 @@ class AuthService {
   /// Sign in with Google
   Future<UserCredential> signInWithGoogle() async {
     try {
+      // Sign out any existing Google session first
+      await _googleSignIn.signOut();
+      
       // Trigger the Google Sign In flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       
       if (googleUser == null) {
-        throw Exception('Google sign in aborted');
+        throw Exception('Google sign in was cancelled by user');
       }
 
       // Obtain the auth details
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Check if we have both access token and id token
+      if (googleAuth.accessToken == null || googleAuth.idToken == null) {
+        throw Exception('Google authentication tokens are missing');
+      }
 
       // Create credential
       final credential = GoogleAuthProvider.credential(
@@ -61,8 +69,16 @@ class AuthService {
       );
 
       // Sign in to Firebase
-      return await _auth.signInWithCredential(credential);
+      final userCredential = await _auth.signInWithCredential(credential);
+      
+      print('✅ Google sign in successful for user: ${userCredential.user?.email}');
+      
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      print('❌ Firebase Auth error during Google sign in: ${e.code} - ${e.message}');
+      throw Exception('Firebase authentication failed: ${e.message}');
     } catch (e) {
+      print('❌ Error during Google sign in: $e');
       throw Exception('Failed to sign in with Google: $e');
     }
   }

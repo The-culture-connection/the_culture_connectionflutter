@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/skills_categories.dart';
 import '../../constants/experience_levels.dart';
@@ -11,6 +12,7 @@ import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/skills_categorization_service.dart';
+import '../../services/messaging_service.dart';
 import '../../models/user_profile.dart';
 import '../../utils/validators.dart';
 import '../main_navigation_screen.dart';
@@ -360,7 +362,26 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       final firestoreService = FirestoreService();
       await firestoreService.createUserProfile(userProfile);
 
-      // 4. Award registration points
+      // 4. Save FCM token and subscribe to general topic
+      try {
+        final messagingService = MessagingService();
+        // Request permission first
+        final permissionSettings = await messagingService.requestPermission();
+        
+        // Save FCM token to user profile (this will also subscribe to general topic)
+        if (permissionSettings.authorizationStatus == AuthorizationStatus.authorized ||
+            permissionSettings.authorizationStatus == AuthorizationStatus.provisional) {
+          await messagingService.updateUserToken(userId);
+          print('FCM token saved for user: $userId');
+        } else {
+          print('User declined notification permission, token not saved');
+        }
+      } catch (e) {
+        // Don't fail registration if FCM token saving fails
+        print('Error saving FCM token during registration: $e');
+      }
+
+      // 5. Award registration points
       await firestoreService.addPoints(
         userId,
         50,

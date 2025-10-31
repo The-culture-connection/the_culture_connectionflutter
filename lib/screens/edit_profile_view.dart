@@ -274,37 +274,71 @@ class _EditProfileViewState extends State<EditProfileView> with SingleTickerProv
   }
 
   Widget _buildProfileHeader() {
+    // Calculate profile completion
+    double completion = _calculateProfileCompletion();
+    
     return Center(
       child: Column(
         children: [
-          GestureDetector(
-            onTap: _selectImage,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: const Color(0xFFFF7E00),
-                  width: 4,
+          // Profile Photo with Completion Meter
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              // Circular progress indicator for profile completion
+              SizedBox(
+                width: 140,
+                height: 140,
+                child: CircularProgressIndicator(
+                  value: completion,
+                  strokeWidth: 8,
+                  backgroundColor: Colors.white.withOpacity(0.3),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4A148C)),
+                  strokeCap: StrokeCap.round,
                 ),
               ),
-              child: ClipOval(
-                child: selectedImage != null
-                    ? Image.file(
-                        selectedImage!,
-                        fit: BoxFit.cover,
-                      )
-                    : const Icon(
-                        Icons.person,
-                        size: 60,
-                        color: Colors.grey,
-                      ),
+              // Profile Photo
+              GestureDetector(
+                onTap: _selectImage,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFFFF7E00),
+                      width: 4,
+                    ),
+                  ),
+                  child: ClipOval(
+                    child: selectedImage != null
+                        ? Image.file(
+                            selectedImage!,
+                            fit: BoxFit.cover,
+                          )
+                        : const Icon(
+                            Icons.person,
+                            size: 60,
+                            color: Colors.grey,
+                          ),
+                  ),
+                ),
               ),
+            ],
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Profile Completion Percentage
+          Text(
+            'Profile ${(completion * 100).toStringAsFixed(0)}% Complete',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 14,
+              fontFamily: 'Inter',
             ),
           ),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           
           Text(
             profileData['Full Name']?.isNotEmpty == true 
@@ -320,6 +354,39 @@ class _EditProfileViewState extends State<EditProfileView> with SingleTickerProv
         ],
       ),
     );
+  }
+  
+  double _calculateProfileCompletion() {
+    double completion = 0.0;
+    int totalFields = 0;
+    
+    // Full Name (required)
+    totalFields++;
+    if (profileData['Full Name'] != null && (profileData['Full Name'] as String).isNotEmpty) completion++;
+    
+    // Age (required)
+    totalFields++;
+    if (profileData['Age'] != null && (profileData['Age'] as int) > 0) completion++;
+    
+    // Job Title (required)
+    totalFields++;
+    if (profileData['Job Title'] != null && (profileData['Job Title'] as String).isNotEmpty) completion++;
+    
+    // Experience Level (required)
+    totalFields++;
+    if (profileData['Experience Level'] != null && (profileData['Experience Level'] as String).isNotEmpty) completion++;
+    
+    // At least one skill offering (should have at least one)
+    totalFields++;
+    final skillsOffering = profileData['Skills Offering'];
+    if (skillsOffering != null && skillsOffering is List && (skillsOffering as List).isNotEmpty) completion++;
+    
+    // At least one skill seeking (should have at least one)
+    totalFields++;
+    final skillsSeeking = profileData['Skills Seeking'];
+    if (skillsSeeking != null && skillsSeeking is List && (skillsSeeking as List).isNotEmpty) completion++;
+    
+    return totalFields > 0 ? completion / totalFields : 0.0;
   }
 
   Widget _buildEditButton({

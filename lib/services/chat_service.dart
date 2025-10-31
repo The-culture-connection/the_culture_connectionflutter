@@ -157,7 +157,9 @@ class ChatService {
   }
 
   // Fetch date proposals for a chat room
+  // Using 'DateProposals' to match the collection name used in proposeDate
   Stream<List<DateProposal>> getDateProposals(String chatRoomId) {
+    // Try both collection names to handle case-sensitivity issues (iOS vs Android)
     return _db
         .collection('ChatRooms')
         .doc(chatRoomId)

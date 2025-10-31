@@ -7,13 +7,59 @@ import '../auth/login_screen.dart';
 import 'edit_profile_screen.dart';
 import 'points_screen.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final userProfile = ref.watch(currentUserProfileProvider);
-    final authService = ref.watch(authServiceProvider);
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  double _calculateProfileCompletion(UserProfile profile) {
+    double completion = 0.0;
+    int totalFields = 0;
+    
+    // Photo (required)
+    totalFields++;
+    if (profile.photoURL != null && profile.photoURL!.isNotEmpty) completion++;
+    
+    // Full Name (required)
+    totalFields++;
+    if (profile.fullName.isNotEmpty) completion++;
+    
+    // Age (required)
+    totalFields++;
+    if (profile.age > 0) completion++;
+    
+    // Gender (required)
+    totalFields++;
+    if (profile.gender.isNotEmpty) completion++;
+    
+    // Bio (optional but counts)
+    totalFields++;
+    if (profile.bio.isNotEmpty) completion++;
+    
+    // Skills Offering (should have at least one)
+    totalFields++;
+    if (profile.skillsOffering.isNotEmpty) completion++;
+    
+    // Skills Seeking (should have at least one)
+    totalFields++;
+    if (profile.skillsSeeking.isNotEmpty) completion++;
+    
+    // Experience Level (required)
+    totalFields++;
+    if (profile.experienceLevel.isNotEmpty) completion++;
+    
+    // Location (optional but counts)
+    totalFields++;
+    if (profile.location.isNotEmpty) completion++;
+    
+    return totalFields > 0 ? completion / totalFields : 0.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
 
     return Scaffold(
       appBar: AppBar(
@@ -29,11 +75,13 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: userProfile.when(
+      body: ref.watch(currentUserProfileProvider).when(
         data: (profile) {
           if (profile == null) {
             return const Center(child: Text('Profile not found'));
           }
+
+          final profileCompletion = _calculateProfileCompletion(profile);
 
           return SingleChildScrollView(
             child: Column(
@@ -51,16 +99,34 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      // Profile Photo
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: Colors.white,
-                        backgroundImage: profile.photoURL != null
-                            ? NetworkImage(profile.photoURL!)
-                            : null,
-                        child: profile.photoURL == null
-                            ? const Icon(Icons.person, size: 60, color: AppColors.deepPurple)
-                            : null,
+                      // Profile Photo with Completion Meter
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Circular progress indicator for profile completion
+                          SizedBox(
+                            width: 140,
+                            height: 140,
+                            child: CircularProgressIndicator(
+                              value: profileCompletion,
+                              strokeWidth: 8,
+                              backgroundColor: Colors.white.withOpacity(0.3),
+                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.deepPurple),
+                              strokeCap: StrokeCap.round,
+                            ),
+                          ),
+                          // Profile Photo
+                          CircleAvatar(
+                            radius: 60,
+                            backgroundColor: Colors.white,
+                            backgroundImage: profile.photoURL != null
+                                ? NetworkImage(profile.photoURL!)
+                                : null,
+                            child: profile.photoURL == null
+                                ? const Icon(Icons.person, size: 60, color: AppColors.deepPurple)
+                                : null,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
                       
@@ -216,6 +282,7 @@ class ProfileScreen extends ConsumerWidget {
                         icon: Icons.logout,
                         title: 'Sign Out',
                         onTap: () async {
+                          final authService = ref.read(authServiceProvider);
                           await authService.signOut();
                           if (context.mounted) {
                             Navigator.of(context).pushAndRemoveUntil(

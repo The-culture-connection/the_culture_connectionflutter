@@ -9,7 +9,7 @@ import '../newsfeed_screen.dart';
 import '../search/user_search_screen.dart';
 import '../mentoring/mentoring_connections_screen.dart';
 import '../networking/networking_connections_screen.dart';
-import '../voting_screen.dart';
+import '../real_black_friday_screen.dart';
 
 class ConnectionsScreen extends ConsumerStatefulWidget {
   const ConnectionsScreen({super.key});
@@ -186,14 +186,14 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                           
                           const SizedBox(height: 16),
                           
-                          // LIVE VOTING Button
+                          // THE REAL BLACK FRIDAY Button
                           _buildActionButton(
-                            text: "LIVE VOTING",
+                            text: "THE REAL BLACK FRIDAY",
                             onTap: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const VotingScreen(),
+                                  builder: (context) => const RealBlackFridayScreen(),
                                 ),
                               );
                             },

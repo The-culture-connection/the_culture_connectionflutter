@@ -102,7 +102,11 @@ class BusinessDetailScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  if (business.businessDescription != null) ...[
+                  // Display description from either field
+                  final description = business.description.isNotEmpty 
+                      ? business.description 
+                      : (business.businessDescription ?? '');
+                  if (description.isNotEmpty) ...[
                     const SizedBox(height: 24),
                     const Text(
                       'About',
@@ -114,7 +118,7 @@ class BusinessDetailScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      business.businessDescription!,
+                      description,
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.8),
                         fontSize: 16,

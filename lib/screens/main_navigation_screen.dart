@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/app_colors.dart';
+import '../services/messaging_service.dart';
 import 'connections/connections_screen.dart';
 import 'chat/chat_view.dart';
 import 'discover_screen.dart';
@@ -22,6 +24,25 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _initializeMessaging();
+  }
+  
+  /// Initialize messaging service and save FCM token
+  Future<void> _initializeMessaging() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        final messagingService = MessagingService();
+        // Initialize messaging (requests permission and subscribes to general topic)
+        await messagingService.initialize();
+        // Update user token to ensure it's saved
+        await messagingService.updateUserToken(currentUser.uid);
+        print('Messaging initialized and FCM token saved for user: ${currentUser.uid}');
+      }
+    } catch (e) {
+      // Don't block app if messaging initialization fails
+      print('Error initializing messaging: $e');
+    }
   }
 
   final List<Widget> _screens = const [

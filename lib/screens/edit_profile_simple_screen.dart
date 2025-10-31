@@ -90,7 +90,9 @@ class _EditProfileSimpleScreenState extends State<EditProfileSimpleScreen> {
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
   
@@ -211,6 +213,40 @@ class _EditProfileSimpleScreenState extends State<EditProfileSimpleScreen> {
         backgroundColor: AppColors.error,
       ),
     );
+  }
+
+  double _calculateProfileCompletion() {
+    if (_userProfile == null) return 0.0;
+    
+    double completion = 0.0;
+    int totalFields = 0;
+    
+    // Full Name (required)
+    totalFields++;
+    if (_nameController.text.trim().isNotEmpty) completion++;
+    
+    // Age (required)
+    totalFields++;
+    final age = int.tryParse(_ageController.text.trim());
+    if (age != null && age > 0) completion++;
+    
+    // Job Title (required)
+    totalFields++;
+    if (_jobTitleController.text.trim().isNotEmpty) completion++;
+    
+    // Experience Level (required)
+    totalFields++;
+    if (_selectedExperienceLevel.isNotEmpty) completion++;
+    
+    // At least one skill offering (should have at least one)
+    totalFields++;
+    if (_selectedSkillsOffering.isNotEmpty) completion++;
+    
+    // At least one skill seeking (should have at least one)
+    totalFields++;
+    if (_selectedSkillsSeeking.isNotEmpty) completion++;
+    
+    return totalFields > 0 ? completion / totalFields : 0.0;
   }
 
   Future<void> _signOut() async {
@@ -378,47 +414,79 @@ class _EditProfileSimpleScreenState extends State<EditProfileSimpleScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Photo
+            // Profile Photo with Completion Meter
             Center(
-              child: GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.deepPurple.withOpacity(0.3),
-                    border: Border.all(
-                      color: AppColors.electricOrange,
-                      width: 3,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Circular progress indicator for profile completion
+                  SizedBox(
+                    width: 140,
+                    height: 140,
+                    child: CircularProgressIndicator(
+                      value: _calculateProfileCompletion(),
+                      strokeWidth: 8,
+                      backgroundColor: Colors.white.withOpacity(0.3),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4A148C)),
+                      strokeCap: StrokeCap.round,
                     ),
                   ),
-                  child: _selectedImage != null
-                      ? ClipOval(
-                          child: Image.file(
-                            _selectedImage!,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      : _userProfile?.photoURL.isNotEmpty == true
+                  // Profile Photo
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.deepPurple.withOpacity(0.3),
+                        border: Border.all(
+                          color: AppColors.electricOrange,
+                          width: 3,
+                        ),
+                      ),
+                      child: _selectedImage != null
                           ? ClipOval(
-                              child: Image.network(
-                                _userProfile!.photoURL,
+                              child: Image.file(
+                                _selectedImage!,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Icon(
-                                    Icons.person,
-                                    size: 60,
-                                    color: Colors.white,
-                                  );
-                                },
                               ),
                             )
-                          : const Icon(
-                              Icons.add_a_photo,
-                              size: 40,
-                              color: AppColors.electricOrange,
-                            ),
+                          : _userProfile?.photoURL.isNotEmpty == true
+                              ? ClipOval(
+                                  child: Image.network(
+                                    _userProfile!.photoURL,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return const Icon(
+                                        Icons.person,
+                                        size: 60,
+                                        color: Colors.white,
+                                      );
+                                    },
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.add_a_photo,
+                                  size: 40,
+                                  color: AppColors.electricOrange,
+                                ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Profile Completion Percentage
+            Center(
+              child: Text(
+                'Profile ${(_calculateProfileCompletion() * 100).toStringAsFixed(0)}% Complete',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 14,
+                  fontFamily: 'Inter',
                 ),
               ),
             ),
@@ -430,6 +498,7 @@ class _EditProfileSimpleScreenState extends State<EditProfileSimpleScreen> {
               controller: _nameController,
               label: 'Full Name',
               icon: Icons.person,
+              onChanged: () => setState(() {}), // Update completion meter
             ),
             
             const SizedBox(height: 16),
@@ -440,6 +509,7 @@ class _EditProfileSimpleScreenState extends State<EditProfileSimpleScreen> {
               label: 'Age',
               icon: Icons.cake,
               keyboardType: TextInputType.number,
+              onChanged: () => setState(() {}), // Update completion meter
             ),
             
             const SizedBox(height: 16),
@@ -449,6 +519,7 @@ class _EditProfileSimpleScreenState extends State<EditProfileSimpleScreen> {
               controller: _jobTitleController,
               label: 'Job Title',
               icon: Icons.work,
+              onChanged: () => setState(() {}), // Update completion meter
             ),
             
             const SizedBox(height: 16),
@@ -583,6 +654,7 @@ class _EditProfileSimpleScreenState extends State<EditProfileSimpleScreen> {
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    VoidCallback? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -601,6 +673,7 @@ class _EditProfileSimpleScreenState extends State<EditProfileSimpleScreen> {
           controller: controller,
           keyboardType: keyboardType,
           style: const TextStyle(color: Colors.white),
+          onChanged: (_) => onChanged?.call(),
           decoration: InputDecoration(
             hintText: 'Enter $label',
             hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),

@@ -62,9 +62,11 @@ class BusinessCard extends StatelessWidget {
               const SizedBox(height: 8),
               
               // Description
-              if (business.description.isNotEmpty) ...[
+              if (business.description.isNotEmpty || (business.businessDescription?.isNotEmpty ?? false)) ...[
                 Text(
-                  business.description,
+                  business.description.isNotEmpty 
+                      ? business.description 
+                      : (business.businessDescription ?? ''),
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 14,

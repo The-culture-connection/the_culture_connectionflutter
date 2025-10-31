@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_profile.dart';
+
+// Import Query for type checking
 import '../models/post.dart';
 import '../models/chat_room.dart';
 import '../models/message.dart';
@@ -103,7 +105,11 @@ class FirestoreService {
     print('FirestoreService: getAllUsers called with limit: $limit');
     try {
       print('FirestoreService: Querying users collection...');
-      final snapshot = await _usersCollection.limit(limit).get();
+      Query query = _usersCollection;
+      if (limit > 0) {
+        query = query.limit(limit);
+      }
+      final snapshot = await query.get();
       print('FirestoreService: Got ${snapshot.docs.length} documents');
       
       final users = snapshot.docs.map((doc) {
