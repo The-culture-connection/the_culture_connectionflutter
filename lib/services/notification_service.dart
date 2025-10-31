@@ -27,14 +27,38 @@ class NotificationService {
         print('User granted permission: ${settings.authorizationStatus}');
       }
 
-      // Get FCM token
-      final token = await _messaging.getToken();
-      if (token != null) {
-        await _saveTokenToDatabase(token);
-      }
+      // If permission granted, subscribe to general topic and get token
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        if (kDebugMode) {
+          print('✅ Notification permission granted');
+        }
 
-      // Listen for token refresh
-      _messaging.onTokenRefresh.listen(_saveTokenToDatabase);
+        // Subscribe to general topic for all users
+        await subscribeToTopic('general');
+        if (kDebugMode) {
+          print('✅ Subscribed to general topic');
+        }
+
+        // Get FCM token
+        final token = await _messaging.getToken();
+        if (token != null) {
+          await _saveTokenToDatabase(token);
+          if (kDebugMode) {
+            print('✅ FCM token saved: ${token.substring(0, 20)}...');
+          }
+        }
+
+        // Listen for token refresh
+        _messaging.onTokenRefresh.listen((newToken) async {
+          await _saveTokenToDatabase(newToken);
+          // Re-subscribe to general topic on token refresh
+          await subscribeToTopic('general');
+        });
+      } else {
+        if (kDebugMode) {
+          print('❌ Notification permission denied or not determined');
+        }
+      }
 
       // Handle background messages
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -63,10 +87,20 @@ class NotificationService {
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        await _db.collection('users').doc(user.uid).set({
-          'fcmToken': token,
-          'lastUpdated': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        // Save to both 'users' and 'Profiles' collections for compatibility
+        await Future.wait([
+          _db.collection('users').doc(user.uid).set({
+            'fcmToken': token,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true)),
+          _db.collection('Profiles').doc(user.uid).set({
+            'fcmToken': token,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true)),
+        ]);
+        if (kDebugMode) {
+          print('✅ Token saved to Firestore');
+        }
       }
     } catch (e) {
       if (kDebugMode) {
