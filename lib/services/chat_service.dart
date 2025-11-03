@@ -159,6 +159,7 @@ class ChatService {
   // Fetch date proposals for a chat room
   // Using 'DateProposals' to match the collection name used in proposeDate
   Stream<List<DateProposal>> getDateProposals(String chatRoomId) {
+    print('📅 getDateProposals called for chatRoomId: $chatRoomId');
     // Try both collection names to handle case-sensitivity issues (iOS vs Android)
     return _db
         .collection('ChatRooms')
@@ -167,9 +168,39 @@ class ChatService {
         .orderBy('timestamp', descending: false)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return DateProposal.fromMap(doc.data(), doc.id);
-      }).toList();
+      print('📅 DateProposals snapshot received: ${snapshot.docs.length} documents');
+      try {
+        final proposals = snapshot.docs.map((doc) {
+          try {
+            final data = doc.data();
+            print('📅 Processing date proposal doc ${doc.id}');
+            if (data.isEmpty) {
+              print('⚠️ Empty data for date proposal ${doc.id}');
+              return null;
+            }
+            print('📅 Date proposal data: ${data.keys.join(", ")}');
+            final proposal = DateProposal.fromMap(data, doc.id);
+            print('✅ Successfully parsed date proposal: ${proposal.id}');
+            return proposal;
+          } catch (e) {
+            print('❌ Error parsing date proposal ${doc.id}: $e');
+            print('❌ Data: ${doc.data()}');
+            // Skip malformed proposals
+            return null;
+          }
+        }).whereType<DateProposal>().toList(); // Filter out nulls
+        print('📅 Returning ${proposals.length} valid date proposals');
+        return proposals;
+      } catch (e) {
+        print('❌ Error mapping date proposals: $e');
+        print('❌ Stack trace: ${StackTrace.current}');
+        return <DateProposal>[];
+      }
+    }).handleError((error) {
+      print('❌ Error in date proposals stream: $error');
+      print('❌ Error type: ${error.runtimeType}');
+      print('❌ Stack trace: ${StackTrace.current}');
+      // Stream will emit empty list on error
     });
   }
 

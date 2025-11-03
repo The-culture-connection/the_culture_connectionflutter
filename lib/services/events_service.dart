@@ -5,8 +5,9 @@ import '../models/event.dart';
 
 /// EventsService - Equivalent to iOS EventsService.swift
 class EventsService extends ChangeNotifier {
-  // Your deployed function URL (from iOS version)
-  static const String _baseUrl = 'https://ticketmastersearch-z66sdcydda-uc.a.run.app';
+  // Firebase Function URL - original Cloud Run service was deleted, so using Firebase Function directly
+  // Note: Original URL hash cannot be recreated (Cloud Run hashes are auto-generated)
+  static const String _baseUrl = 'https://us-central1-culture-connection-d442f.cloudfunctions.net/ticketmastersearch';
   
   List<Event> _events = [];
   bool _isLoading = false;

@@ -85,11 +85,86 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             child: StreamBuilder<List<Message>>(
               stream: _chatService.getMessages(widget.chatRoom.id),
               builder: (context, messageSnapshot) {
+                // Handle message stream errors
+                if (messageSnapshot.hasError) {
+                  print('Error loading messages: ${messageSnapshot.error}');
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error loading messages: ${messageSnapshot.error}',
+                            style: const TextStyle(color: Colors.white),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                
                 return StreamBuilder<List<DateProposal>>(
                   stream: _chatService.getDateProposals(widget.chatRoom.id),
                   builder: (context, proposalSnapshot) {
+                    // Debug logging
+                    print('📅 Date Proposals Stream - ConnectionState: ${proposalSnapshot.connectionState}');
+                    print('📅 Date Proposals Stream - HasError: ${proposalSnapshot.hasError}');
+                    if (proposalSnapshot.hasError) {
+                      print('❌ Error loading date proposals: ${proposalSnapshot.error}');
+                      print('❌ Error stack: ${proposalSnapshot.error}');
+                    }
+                    if (proposalSnapshot.hasData) {
+                      print('📅 Date Proposals Stream - Data count: ${proposalSnapshot.data?.length ?? 0}');
+                    }
+                    
+                    // Handle proposal stream errors
+                    if (proposalSnapshot.hasError) {
+                      // Still show messages even if proposals fail
+                      final messages = messageSnapshot.data ?? [];
+                      if (messages.isEmpty) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.error_outline, color: Colors.orange, size: 48),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Error loading date proposals: ${proposalSnapshot.error}',
+                                  style: const TextStyle(color: Colors.white),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Messages are still available below',
+                                  style: TextStyle(color: Colors.grey),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                    
                     final messages = messageSnapshot.data ?? [];
                     final proposals = proposalSnapshot.data ?? [];
+                    print('📅 Combined items - Messages: ${messages.length}, Proposals: ${proposals.length}');
+                    
+                    // Show loading if either stream is loading
+                    if (messageSnapshot.connectionState == ConnectionState.waiting ||
+                        proposalSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFFF7E00),
+                        ),
+                      );
+                    }
                     
                     // Combine and sort messages and proposals by timestamp
                     List<dynamic> allItems = [];
@@ -101,19 +176,53 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       return aTime.compareTo(bTime);
                     });
                     
+                    if (allItems.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.chat_bubble_outline, color: Colors.grey.withOpacity(0.5), size: 64),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No messages yet',
+                              style: TextStyle(color: Colors.grey.withOpacity(0.7)),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    
                     return ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: allItems.length,
                       itemBuilder: (context, index) {
-                        final item = allItems[index];
-                        
-                        if (item is Message) {
-                          return _buildMessageBubble(item, currentUserId);
-                        } else if (item is DateProposal) {
-                          return _buildDateProposalCard(item, currentUserId);
+                        try {
+                          final item = allItems[index];
+                          
+                          if (item is Message) {
+                            return _buildMessageBubble(item, currentUserId);
+                          } else if (item is DateProposal) {
+                            return _buildDateProposalCard(item, currentUserId);
+                          }
+                          
+                          return const SizedBox.shrink();
+                        } catch (e, stackTrace) {
+                          print('❌ Error building item at index $index: $e');
+                          print('❌ Stack trace: $stackTrace');
+                          // Return error widget instead of crashing
+                          return Container(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Error loading item: ${e.toString()}',
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          );
                         }
-                        
-                        return const SizedBox.shrink();
                       },
                     );
                   },
@@ -185,113 +294,158 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Widget _buildDateProposalCard(DateProposal proposal, String? currentUserId) {
-    final isCurrentUser = proposal.proposerId == currentUserId;
-    
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.yellow.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.yellow.withOpacity(0.5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Date Proposal",
-            style: TextStyle(
-              fontFamily: 'Matches-StrikeRough',
-              fontSize: 18,
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+    try {
+      final isCurrentUser = proposal.proposerId == currentUserId;
+      
+      // Defensive checks for null/empty values
+      final details = proposal.details.isNotEmpty ? proposal.details : 'No details provided';
+      final place = proposal.place.isNotEmpty ? proposal.place : 'Location TBA';
+      final status = proposal.status.isNotEmpty ? proposal.status : 'Pending';
+      
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.yellow.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.yellow.withOpacity(0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Date Proposal",
+              style: TextStyle(
+                fontFamily: 'Matches-StrikeRough',
+                fontSize: 18,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Details: ${proposal.details}",
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.white,
-              fontWeight: FontWeight.w500,
+            const SizedBox(height: 8),
+            Text(
+              "Details: $details",
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Date & Time: ${_formatDateTime(proposal.date)}",
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
+            const SizedBox(height: 4),
+            Text(
+              "Date & Time: ${_formatDateTime(proposal.date)}",
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Place: ${proposal.place}",
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
+            const SizedBox(height: 4),
+            Text(
+              "Place: $place",
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Status: ${proposal.status}",
-            style: TextStyle(
-              fontSize: 14,
-              color: proposal.status == "Accepted" 
-                  ? Colors.green 
-                  : proposal.status == "Declined" 
-                      ? Colors.red 
-                      : Colors.blue,
-              fontWeight: FontWeight.w500,
+            const SizedBox(height: 4),
+            Text(
+              "Status: $status",
+              style: TextStyle(
+                fontSize: 14,
+                color: status == "Accepted" 
+                    ? Colors.green 
+                    : status == "Declined" 
+                        ? Colors.red 
+                        : Colors.blue,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-          
-          // Action buttons for pending proposals from others
-          if (!isCurrentUser && proposal.status == "Pending") ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _respondToProposal(proposal, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+            
+            // Action buttons for pending proposals from others
+            if (!isCurrentUser && status == "Pending") ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _respondToProposal(proposal, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        "Accept",
+                        style: TextStyle(color: Colors.white),
                       ),
                     ),
-                    child: const Text(
-                      "Accept",
-                      style: TextStyle(color: Colors.white),
-                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _respondToProposal(proposal, false),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _respondToProposal(proposal, false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        "Decline",
+                        style: TextStyle(color: Colors.white),
                       ),
                     ),
-                    child: const Text(
-                      "Decline",
-                      style: TextStyle(color: Colors.white),
-                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
+            ],
+          ],
+        ),
+      );
+    } catch (e) {
+      print('Error building date proposal card: $e');
+      // Return a fallback card if there's an error
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.withOpacity(0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Date Proposal",
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Error displaying proposal: $e",
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.red,
+              ),
             ),
           ],
-        ],
-      ),
-    );
+        ),
+      );
+    }
   }
 
   String _formatDateTime(DateTime dateTime) {
-    return "${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}";
+    try {
+      return "${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      print('Error formatting date: $e');
+      return dateTime.toString();
+    }
   }
 
   void _sendMessage() {
