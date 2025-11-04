@@ -140,20 +140,8 @@ class ChatService {
         .collection('DateProposals')
         .add(proposalData);
 
-    // Call the Firebase function to notify about the new date proposal
-    try {
-      final functions = FirebaseFunctions.instance;
-      await functions.httpsCallable('notifyOnNewDateProposal').call({
-        'chatRoomId': chatRoomId,
-        'proposalId': docRef.id,
-        'proposerId': currentUserId,
-        'details': details,
-        'date': date.toIso8601String(),
-        'place': place,
-      });
-    } catch (e) {
-      print('Error calling notifyOnNewDateProposal: $e');
-    }
+    // Note: notifyOnNewDateProposal is a Firestore trigger that runs automatically
+    // when a DateProposal is created, so no manual call is needed
   }
 
   // Fetch date proposals for a chat room

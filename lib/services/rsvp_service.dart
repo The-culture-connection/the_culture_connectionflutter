@@ -376,8 +376,11 @@ class RSVPService {
         'timestamp': FieldValue.serverTimestamp(),
       };
 
-      await _db.collection('Matches').add(matchData);
+      final matchRef = await _db.collection('Matches').add(matchData);
       print('✅ Match created successfully between $user1Id and $user2Id');
+      print('✅ Match document ID: ${matchRef.id}');
+      print('✅ Match document path: Matches/${matchRef.id}');
+      print('✅ This should trigger notifyOnNewMatch function');
 
       // Create chat room
       await _createChatRoom(user1Id: user1Id, user2Id: user2Id);

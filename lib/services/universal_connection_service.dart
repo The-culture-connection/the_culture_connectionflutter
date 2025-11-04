@@ -84,11 +84,12 @@ class UniversalConnectionService {
   /// Create a match between two users
   static Future<void> _createMatch(String userId1, String userId2) async {
     try {
-      await _firestore.collection('matches').add({
+      await _firestore.collection('Matches').add({
         'user1Id': userId1,
         'user2Id': userId2,
-        'createdAt': FieldValue.serverTimestamp(),
+        'timestamp': FieldValue.serverTimestamp(),
       });
+      print('✅ Match created successfully between $userId1 and $userId2');
     } catch (e) {
       print('Error creating match: $e');
     }

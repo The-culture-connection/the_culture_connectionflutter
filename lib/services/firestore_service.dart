@@ -340,7 +340,12 @@ class FirestoreService {
     );
     batch.set(matchRef, match.toFirestore());
     
+    print('✅ Creating match document: Matches/${matchRef.id}');
+    print('✅ Match data: user1Id=$user1Id, user2Id=$user2Id');
+    print('✅ This should trigger notifyOnNewMatch function');
+    
     await batch.commit();
+    print('✅ Match document committed to Firestore');
   }
 
   /// Stream user matches

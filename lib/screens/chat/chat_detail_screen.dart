@@ -314,7 +314,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Date Proposal",
+              "Meeting Proposal",
               style: TextStyle(
                 fontFamily: 'Matches-StrikeRough',
                 fontSize: 18,
@@ -418,7 +418,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "Date Proposal",
+              "Meeting Proposal",
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.white,
@@ -441,7 +441,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   String _formatDateTime(DateTime dateTime) {
     try {
-      return "${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}";
+      // Format as month/day/year (US format)
+      final dateStr = "${dateTime.month}/${dateTime.day}/${dateTime.year}";
+      // Only show time if it's not midnight (or if it's explicitly set)
+      if (dateTime.hour == 0 && dateTime.minute == 0) {
+        return dateStr;
+      }
+      // Convert to 12-hour format with AM/PM
+      final hour12 = dateTime.hour == 0 
+          ? 12 
+          : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
+      final period = dateTime.hour < 12 ? 'AM' : 'PM';
+      final minuteStr = dateTime.minute.toString().padLeft(2, '0');
+      return "$dateStr at $hour12:$minuteStr $period";
     } catch (e) {
       print('Error formatting date: $e');
       return dateTime.toString();
@@ -460,12 +472,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     await _chatService.respondToDateProposal(widget.chatRoom.id, proposal.id, accept);
     
     if (accept) {
-      await _addEventToCalendar(proposal);
+      final calendarAdded = await _addEventToCalendar(proposal);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Meeting accepted and added to your calendar!"),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(calendarAdded 
+                ? "Meeting accepted and added to your calendar!" 
+                : "Meeting accepted, but could not add to calendar. Please check permissions."),
+            backgroundColor: calendarAdded ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -481,46 +496,71 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  Future<void> _addEventToCalendar(DateProposal proposal) async {
-    final status = await Permission.calendar.request();
-    if (status.isGranted) {
-      try {
-        final calendar.Event event = calendar.Event(
-          title: 'Meeting with ${widget.chatRoom.otherParticipantName}',
-          description: proposal.details,
-          location: proposal.place,
-          startDate: proposal.date,
-          endDate: proposal.date.add(const Duration(hours: 1)), // 1 hour duration
-          allDay: false,
-          iosParams: const calendar.IOSParams(
-            reminder: Duration(minutes: 15),
-          ),
-          androidParams: const calendar.AndroidParams(
-            emailInvites: [],
-          ),
-        );
-
-        await calendar.Add2Calendar.addEvent2Cal(event);
-      } catch (e) {
-        print('Error adding to calendar: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Error adding to calendar"),
-              backgroundColor: Colors.red,
-            ),
-          );
+  Future<bool> _addEventToCalendar(DateProposal proposal) async {
+    try {
+      // Use the same simple approach as events screen
+      final status = await Permission.calendar.status;
+      if (status.isDenied) {
+        final result = await Permission.calendar.request();
+        if (result.isDenied) {
+          // If permanently denied, open settings
+          if (status.isPermanentlyDenied || result.isPermanentlyDenied) {
+            if (mounted) {
+              await openAppSettings();
+            }
+          }
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Calendar permission denied. Please enable it in Settings."),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return false;
         }
       }
-    } else {
+
+      // Ensure the date is in local time (not UTC)
+      final localDate = proposal.date.isUtc 
+          ? proposal.date.toLocal() 
+          : proposal.date;
+      
+      print('Adding calendar event: ${localDate.toString()}');
+      print('Date details: Year=${localDate.year}, Month=${localDate.month}, Day=${localDate.day}, Hour=${localDate.hour}, Minute=${localDate.minute}');
+      
+      final calendar.Event event = calendar.Event(
+        title: 'Meeting with ${widget.chatRoom.otherParticipantName}',
+        description: proposal.details,
+        location: proposal.place,
+        startDate: localDate,
+        endDate: localDate.add(const Duration(hours: 1)), // 1 hour duration
+        allDay: false,
+        iosParams: const calendar.IOSParams(
+          reminder: Duration(minutes: 15),
+        ),
+        androidParams: const calendar.AndroidParams(
+          emailInvites: [],
+        ),
+      );
+
+      await calendar.Add2Calendar.addEvent2Cal(event);
+      print('✅ Calendar event added successfully');
+      return true;
+    } catch (e) {
+      print('❌ Error adding to calendar: $e');
+      print('Error type: ${e.runtimeType}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Calendar permission denied"),
+          SnackBar(
+            content: Text("Error adding to calendar: ${e.toString()}"),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
+      return false;
     }
   }
 
@@ -553,7 +593,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               controller: _dateProposalController,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
-                hintText: "Describe your date proposal...",
+                hintText: "Describe your meeting proposal...",
                 hintStyle: TextStyle(color: Colors.grey),
                 border: OutlineInputBorder(),
               ),
@@ -641,125 +681,150 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void _showDateProposalDialog() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF2A2A2A),
-          title: const Text(
-            "Propose a Date",
-            style: TextStyle(color: Colors.white),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _dateProposalController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: "Details",
-                  labelStyle: TextStyle(color: Colors.grey),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFFF7E00)),
-                  ),
-                ),
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF2A2A2A),
+              title: const Text(
+                "Propose a Meeting",
+                style: TextStyle(color: Colors.white),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _placeController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  labelText: "Place",
-                  labelStyle: TextStyle(color: Colors.grey),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFFFF7E00)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    "Date: ",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _selectedDate,
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
-                        );
-                        if (date != null) {
-                          setState(() {
-                            _selectedDate = date;
-                          });
-                        }
-                      },
-                      child: Text(
-                        "${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}",
-                        style: const TextStyle(color: Color(0xFFFF7E00)),
+                  TextField(
+                    controller: _dateProposalController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: "Details",
+                      labelStyle: TextStyle(color: Colors.grey),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFFFF7E00)),
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Text(
-                    "Time: ",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () async {
-                        final time = await showTimePicker(
-                          context: context,
-                          initialTime: _selectedTime,
-                        );
-                        if (time != null) {
-                          setState(() {
-                            _selectedTime = time;
-                          });
-                        }
-                      },
-                      child: Text(
-                        _selectedTime.format(context),
-                        style: const TextStyle(color: Color(0xFFFF7E00)),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _placeController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: "Place",
+                      labelStyle: TextStyle(color: Colors.grey),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFFFF7E00)),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Text(
+                        "Date: ",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _selectedDate,
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (date != null) {
+                              setState(() {
+                                _selectedDate = DateTime(
+                                  date.year,
+                                  date.month,
+                                  date.day,
+                                  _selectedDate.hour,
+                                  _selectedDate.minute,
+                                );
+                              });
+                              // Update dialog state to refresh display
+                              setDialogState(() {});
+                            }
+                          },
+                          child: Text(
+                            "${_selectedDate.month}/${_selectedDate.day}/${_selectedDate.year}",
+                            style: const TextStyle(color: Color(0xFFFF7E00)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Text(
+                        "Time: ",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () async {
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: _selectedTime,
+                            );
+                            if (time != null) {
+                              setState(() {
+                                _selectedTime = time;
+                                _selectedDate = DateTime(
+                                  _selectedDate.year,
+                                  _selectedDate.month,
+                                  _selectedDate.day,
+                                  time.hour,
+                                  time.minute,
+                                );
+                              });
+                              // Update dialog state to refresh display
+                              setDialogState(() {});
+                            }
+                          },
+                          child: Text(
+                            _selectedTime.format(context),
+                            style: const TextStyle(color: Color(0xFFFF7E00)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _dateProposalController.clear();
-                _placeController.clear();
-              },
-              child: const Text(
-                "Cancel",
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: _proposeDate,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF7E00),
-              ),
-              child: const Text("Propose"),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _dateProposalController.clear();
+                    _placeController.clear();
+                  },
+                  child: const Text(
+                    "Cancel",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _proposeDate();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF7E00),
+                  ),
+                  child: const Text("Propose"),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -816,18 +881,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       );
       
       print('Adding to calendar...'); // Debug log
-      await _addEventToCalendar(proposal);
-      print('Calendar addition completed'); // Debug log
+      final calendarAdded = await _addEventToCalendar(proposal);
+      print('Calendar addition completed: $calendarAdded'); // Debug log
       
-      Navigator.pop(context);
+      // Dialog already closed by button press, just clear controllers
       _dateProposalController.clear();
       _placeController.clear();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Date proposal sent and added to your calendar!"),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(calendarAdded 
+                ? "Date proposal sent and added to your calendar!" 
+                : "Date proposal sent, but could not add to calendar. Please check permissions."),
+            backgroundColor: calendarAdded ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
