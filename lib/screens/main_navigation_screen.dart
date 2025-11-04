@@ -33,11 +33,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
         final messagingService = MessagingService();
-        // Initialize messaging (requests permission and subscribes to general topic)
+        // Initialize messaging (requests permission, gets FCM token, saves it, and subscribes to general topic)
         await messagingService.initialize();
-        // Update user token to ensure it's saved
+        // updateUserToken is called as a lightweight fallback (only 1 retry) - initialize() already saves the token
         await messagingService.updateUserToken(currentUser.uid);
-        print('Messaging initialized and FCM token saved for user: ${currentUser.uid}');
+        print('Messaging initialized for user: ${currentUser.uid}');
       }
     } catch (e) {
       // Don't block app if messaging initialization fails

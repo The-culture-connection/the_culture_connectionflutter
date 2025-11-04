@@ -540,7 +540,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              "Propose a Date",
+              "Propose a Meeting",
               style: const TextStyle(
                 fontFamily: 'Matches-StrikeRough',
                 fontSize: 20,
@@ -752,15 +752,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 style: TextStyle(color: Colors.grey),
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: _proposeDate,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF7E00),
-                ),
-                child: const Text("Propose"),
+            ElevatedButton(
+              onPressed: _proposeDate,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF7E00),
               ),
+              child: const Text("Propose"),
             ),
           ],
         );

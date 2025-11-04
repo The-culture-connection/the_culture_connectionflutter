@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/skills_categories.dart';
 import '../../constants/experience_levels.dart';
@@ -365,20 +366,20 @@ class _RegistrationScreenState extends ConsumerState<RegistrationScreen> {
       // 4. Save FCM token and subscribe to general topic
       try {
         final messagingService = MessagingService();
-        // Request permission first
-        final permissionSettings = await messagingService.requestPermission();
+        // Initialize messaging service (this will request permission, wait for APNS, get FCM token, and save it)
+        await messagingService.initialize();
         
-        // Save FCM token to user profile (this will also subscribe to general topic)
-        if (permissionSettings.authorizationStatus == AuthorizationStatus.authorized ||
-            permissionSettings.authorizationStatus == AuthorizationStatus.provisional) {
-          await messagingService.updateUserToken(userId);
-          print('FCM token saved for user: $userId');
-        } else {
-          print('User declined notification permission, token not saved');
+        // Only call updateUserToken as a fallback if initialize() didn't save it (e.g., token wasn't ready yet)
+        // The onTokenRefresh listener will handle it automatically when token becomes available
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          // Try once more with minimal retry (only 1 attempt) - this is just a fallback
+          await messagingService.updateUserToken(currentUser.uid);
         }
       } catch (e) {
         // Don't fail registration if FCM token saving fails
-        print('Error saving FCM token during registration: $e');
+        print('⚠️ Error saving FCM token during registration: $e');
+        print('⚠️ Token will be saved automatically when it becomes available (via onTokenRefresh)');
       }
 
       // 5. Award registration points

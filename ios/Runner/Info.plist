@@ -22,10 +22,30 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.809968040469-0fdb68ltn9v900pp57v61k65g7p7jn2v</string>
+				<string>com.googleusercontent.apps.809968040469-3ih2a1d5mhapanqv1ivf8seis8uimapc</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GIDClientID</key>
+	<string>809968040469-3ih2a1d5mhapanqv1ivf8seis8uimapc.apps.googleusercontent.com</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>google</string>
+		<string>com.googleusercontent.apps.809968040469-0fdb68ltn9v900pp57v61k65g7p7jn2v</string>
+		<string>com.googleusercontent.apps.809968040469-3ih2a1d5mhapanqv1ivf8seis8uimapc</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
@@ -33,12 +53,30 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSCalendarsUsageDescription</key>
+	<string>This app needs access to your calendar to help you schedule meetings and events with other users.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This app needs location access to help you find nearby users and events.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app needs location access to help you find nearby users and events.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your photo library to let you select and upload profile pictures.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>bluetooth-peripheral</string>
+		<string>audio</string>
+		<string>processing</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+		<string>push-to-talk</string>
+		<string>location</string>
+		<string>external-accessory</string>
+		<string>voip</string>
+		<string>nearby-interaction</string>
+		<string>bluetooth-central</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -55,38 +93,6 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-	</array>
-	
-	<!-- Privacy Descriptions -->
-	<key>NSCalendarsUsageDescription</key>
-	<string>This app needs access to your calendar to help you schedule meetings and events with other users.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs access to your photo library to let you select and upload profile pictures.</string>
-	
-	<!-- Google Sign In Configuration -->
-	<key>GIDClientID</key>
-	<string>809968040469-3ih2a1d5mhapanqv1ivf8seis8uimapc.apps.googleusercontent.com</string>
-	
-	<!-- URL Types for Google Sign In -->
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.809968040469-0fdb68ltn9v900pp57v61k65g7p7jn2v</string>
-				<string>com.googleusercontent.apps.809968040469-3ih2a1d5mhapanqv1ivf8seis8uimapc</string>
-			</array>
-		</dict>
-	</array>
-	
-	<!-- Query Schemes for Google Sign In -->
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>google</string>
-		<string>com.googleusercontent.apps.809968040469-0fdb68ltn9v900pp57v61k65g7p7jn2v</string>
-		<string>com.googleusercontent.apps.809968040469-3ih2a1d5mhapanqv1ivf8seis8uimapc</string>
 	</array>
 </dict>
 </plist>

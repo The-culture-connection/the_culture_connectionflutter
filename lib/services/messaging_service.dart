@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -9,36 +10,98 @@ class MessagingService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   final FirestoreService _firestoreService = FirestoreService();
+  static bool _isInitialized = false;
+  static StreamSubscription<String>? _tokenRefreshSubscription;
 
   /// Initialize messaging
   Future<void> initialize() async {
-    // Optional but helpful
-    await _messaging.setAutoInitEnabled(true);
+    // Prevent multiple full initializations, but allow token retrieval attempts
+    final isFirstInit = !_isInitialized;
     
-    // Initialize local notifications
-    await _initializeLocalNotifications();
+    if (isFirstInit) {
+      // Optional but helpful
+      await _messaging.setAutoInitEnabled(true);
+      
+      // Initialize local notifications
+      await _initializeLocalNotifications();
+      
+      // Set up token refresh listener FIRST (so it catches tokens when they become available)
+      // Only set up once to avoid duplicate listeners
+      if (_tokenRefreshSubscription == null) {
+        _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((newToken) async {
+          print('🔄 FCM Token refreshed: ${newToken.substring(0, 20)}...');
+          print('🔄 Full token length: ${newToken.length}');
+          // Update token in Firestore and subscribe to general topic
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            print('🔄 Saving token to Firestore for user: $currentUser.uid');
+            await _saveTokenToFirestore(currentUser.uid, newToken);
+          } else {
+            print('⚠️ No current user when token refreshed, will save on next login');
+          }
+        }, onError: (error) {
+          print('❌ Error in token refresh listener: $error');
+        }, onDone: () {
+          print('⚠️ Token refresh listener completed (unexpected)');
+        });
+        print('✅ Token refresh listener set up and active');
+      } else {
+        print('✅ Token refresh listener already active');
+      }
+      
+      // Request permission (this will also trigger APNS registration on iOS)
+      final settings = await requestPermission();
+      
+      // Handle foreground messages
+      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      
+      // Handle background messages
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      
+      // Handle notification taps
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+      
+      // Mark as initialized
+      _isInitialized = true;
+    } else {
+      print('⚠️ MessagingService already initialized, attempting to get token if available...');
+    }
     
-    // Request permission (this will also trigger APNS registration on iOS)
-    final settings = await requestPermission();
-    
-    // On iOS, wait for APNS token with longer timeout and better handling
+    // Always try to get token (even if already initialized) - it might be available now
+    // On iOS, check APNS token first
     if (Platform.isIOS) {
-      await _waitForAPNSToken();
+      final apnsToken = await _messaging.getAPNSToken();
+      if (apnsToken == null) {
+        print('⚠️ APNS token not available yet');
+        if (isFirstInit) {
+          // Only wait on first init
+          await _waitForAPNSToken();
+        }
+      } else {
+        print('✅ APNS token available');
+      }
     }
     
     // Get FCM token (this requires APNS token to be set first on iOS)
-    final token = await _getTokenWithRetry();
+    final token = await _getTokenWithRetry(maxRetries: 2);
     if (token != null) {
       print('✅ FCM Token obtained: ${token.substring(0, 20)}...');
+      // Save token if user is logged in
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        await _saveTokenToFirestore(currentUser.uid, token);
+      }
       // Subscribe to general topic when permission is granted and token exists
-      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      final settings = await _messaging.getNotificationSettings();
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
         try {
           await subscribeToTopic('general');
           print('✅ Subscribed to general topic');
         } catch (e) {
-          print('❌ Error subscribing to general topic: $e');
-          // Retry subscription after a delay
-          Future.delayed(const Duration(seconds: 5), () async {
+          print('⚠️ Error subscribing to general topic: $e');
+          // Retry subscription once after a short delay
+          Future.delayed(const Duration(seconds: 2), () async {
             try {
               await subscribeToTopic('general');
               print('✅ Successfully subscribed to general topic on retry');
@@ -51,80 +114,103 @@ class MessagingService {
         print('⚠️ Notification permission not granted - cannot subscribe to topic');
       }
     } else {
-      print('⚠️ FCM token not available yet - will retry when token is available');
-      print('⚠️ Note: On iOS, APNS token must be set first. Testing on simulator will fail.');
-      // Set up a delayed retry for token retrieval
-      _retryTokenRetrieval();
-    }
-    
-    // Listen to token refresh
-    _messaging.onTokenRefresh.listen((newToken) async {
-      print('FCM Token refreshed: $newToken');
-      // Update token in Firestore and subscribe to general topic
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        await updateUserToken(currentUser.uid);
+      print('⚠️ FCM token not available yet - will be saved automatically when available');
+      if (Platform.isIOS) {
+        print('⚠️ Note: On iOS, APNS token must be set first. Testing on simulator will fail.');
+        print('⚠️ The token refresh listener will save it when APNS becomes available.');
+        
+        // Schedule a retry after 5 seconds if token still isn't available
+        // This helps catch cases where APNS becomes available after initialization
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          Future.delayed(const Duration(seconds: 5), () async {
+            print('🔄 Retrying FCM token retrieval after delay...');
+            final retryToken = await _getTokenWithRetry(maxRetries: 1);
+            if (retryToken != null) {
+              print('✅ FCM Token obtained on retry: ${retryToken.substring(0, 20)}...');
+              await _saveTokenToFirestore(currentUser.uid, retryToken);
+            } else {
+              print('⚠️ FCM token still not available - will be saved via token refresh listener');
+            }
+          });
+        }
       }
-    });
-    
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-    
-    // Handle background messages
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    
-    // Handle notification taps
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+      // Token refresh listener will handle saving when token becomes available
+    }
   }
   
-  /// Wait for APNS token with exponential backoff
+  /// Save token to Firestore and subscribe to general topic
+  Future<void> _saveTokenToFirestore(String userId, String token) async {
+    try {
+      await _firestoreService.updateUserProfile(userId, {'fcmToken': token});
+      print('✅ FCM token saved to Firestore for user: $userId');
+      
+      // Subscribe to general topic
+      try {
+        await subscribeToTopic('general');
+        print('✅ Subscribed to general topic');
+      } catch (e) {
+        print('⚠️ Error subscribing to general topic: $e');
+        // Retry subscription
+        Future.delayed(const Duration(seconds: 3), () async {
+          try {
+            await subscribeToTopic('general');
+            print('✅ Successfully subscribed to general topic on retry');
+          } catch (retryError) {
+            print('❌ Failed to subscribe to general topic: $retryError');
+          }
+        });
+      }
+    } catch (e) {
+      print('❌ Error saving FCM token to Firestore: $e');
+    }
+  }
+  
+  /// Wait for APNS token with shorter timeout (max 10 seconds)
   Future<void> _waitForAPNSToken() async {
     String? apns;
     int tries = 0;
-    int delayMs = 500;
-    const maxTries = 100; // 30+ seconds total
+    const delayMs = 500;
+    const maxTries = 20; // 20 * 500ms = 10 seconds max
     
-    print('Waiting for APNS token...');
+    print('⏳ Waiting for APNS token...');
     
     while (apns == null && tries < maxTries) {
       apns = await _messaging.getAPNSToken();
       if (apns == null) {
-        await Future.delayed(Duration(milliseconds: delayMs));
-        // Exponential backoff: 500ms, 500ms, 1000ms, 1000ms, 1500ms, etc.
-        if (tries > 0 && tries % 2 == 0) {
-          delayMs = (delayMs * 1.5).round().clamp(500, 2000);
-        }
+        await Future.delayed(const Duration(milliseconds: delayMs));
       }
       tries++;
     }
     
     if (apns != null) {
-      print('✅ APNS Token obtained: $apns');
+      print('✅ APNS Token obtained');
     } else {
-      print('⚠️ Warning: APNS token not available after waiting (might be simulator or APNS not configured)');
-      print('⚠️ Note: FCM tokens require APNS on iOS. Testing on simulator will fail.');
-      print('⚠️ For testing on physical device, ensure:');
-      print('   1. App is running on a physical iOS device (not simulator)');
-      print('   2. Push notifications capability is enabled in Xcode');
-      print('   3. APNS certificates are configured in Firebase Console');
+      print('⚠️ APNS token not available after 10s (might be simulator or still initializing)');
+      print('⚠️ FCM token will be saved automatically when APNS becomes available');
+      print('⚠️ Note: On physical device, APNS should be available within a few seconds');
     }
   }
   
-  /// Get token with retry logic
-  Future<String?> _getTokenWithRetry({int maxRetries = 3}) async {
+  /// Get token with minimal retry logic (only 1 retry to avoid long waits)
+  Future<String?> _getTokenWithRetry({int maxRetries = 2}) async {
     for (int i = 0; i < maxRetries; i++) {
       try {
         final token = await getToken();
         if (token != null) {
           return token;
         }
+        // Only retry once with a short delay
         if (i < maxRetries - 1) {
-          await Future.delayed(Duration(seconds: 1 * (i + 1))); // 1s, 2s, 3s
+          await Future.delayed(const Duration(milliseconds: 500));
         }
       } catch (e) {
-        print('Error getting token (attempt ${i + 1}/$maxRetries): $e');
+        // Only log error on first attempt, don't spam
+        if (i == 0) {
+          print('⚠️ Error getting FCM token: $e');
+        }
         if (i < maxRetries - 1) {
-          await Future.delayed(Duration(seconds: 1 * (i + 1)));
+          await Future.delayed(const Duration(milliseconds: 500));
         }
       }
     }
@@ -186,36 +272,60 @@ class MessagingService {
   /// Get FCM token (simplified - APNS waiting is handled during initialization)
   Future<String?> getToken() async {
     try {
-      // On iOS, check for APNS token
+      // On iOS, check for APNS token (but don't spam logs)
       if (Platform.isIOS) {
         final apns = await _messaging.getAPNSToken();
         if (apns == null) {
-          print('⚠️ Warning: APNS token not available when getting FCM token');
-          print('⚠️ This will likely fail on iOS. Ensure you are testing on a physical device.');
-          // Still try to get FCM token - it might work in some cases
-        } else {
-          print('✅ APNS token verified before FCM token request');
+          // Only log once per attempt to avoid spam
+          // Don't print here - let the caller handle logging
         }
       }
       final token = await _messaging.getToken();
-      if (token != null) {
-        print('✅ FCM Token successfully obtained: ${token.substring(0, 20)}...');
-      }
       return token;
     } catch (e) {
-      print('Error getting FCM token: $e');
+      // Only log the error message, not the full stack trace
+      final errorMessage = e.toString();
+      if (errorMessage.contains('apns-token-not-set')) {
+        // Don't spam - this is expected on simulator or when APNS isn't ready
+        return null;
+      }
+      print('Error getting FCM token: $errorMessage');
       return null;
     }
   }
 
-  /// Update FCM token in Firestore
+  /// Update FCM token in Firestore (only if not already saved during initialization)
   Future<void> updateUserToken(String userId) async {
-    final token = await getToken();
+    // Try to get token with minimal retry (only if initialize() didn't already get it)
+    final token = await _getTokenWithRetry(maxRetries: 1);
     if (token != null) {
-      await _firestoreService.updateUserProfile(userId, {'fcmToken': token});
-      // Subscribe to general topic when token is updated
-      await subscribeToTopic('general');
-      print('User subscribed to general topic');
+      try {
+        await _firestoreService.updateUserProfile(userId, {'fcmToken': token});
+        print('✅ FCM token saved to Firestore for user: $userId');
+        
+        // Subscribe to general topic when token is updated
+        try {
+          await subscribeToTopic('general');
+          print('✅ Subscribed to general topic');
+        } catch (e) {
+          print('⚠️ Error subscribing to general topic: $e');
+          // Retry subscription once after a short delay
+          Future.delayed(const Duration(seconds: 2), () async {
+            try {
+              await subscribeToTopic('general');
+              print('✅ Successfully subscribed to general topic on retry');
+            } catch (retryError) {
+              print('❌ Still failed to subscribe to general topic: $retryError');
+            }
+          });
+        }
+      } catch (e) {
+        print('❌ Error updating user token in Firestore: $e');
+      }
+    } else {
+      print('⚠️ FCM token not available yet for user $userId');
+      print('⚠️ Token will be saved automatically when it becomes available (via onTokenRefresh)');
+      // The onTokenRefresh listener will handle saving the token when it becomes available
     }
   }
 
