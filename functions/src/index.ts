@@ -982,6 +982,96 @@ export const notifyOnNewConnectionRequest = onDocumentCreated(
   },
 );
 
+export const notifyOnNewMatch = onDocumentCreated(
+  {
+    document: "Matches/{matchId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    logger.info("=== notifyOnNewMatch TRIGGERED ===");
+    logger.info(`Match ID: ${event.params.matchId}`);
+    
+    const data = event.data?.data();
+    if (!data) {
+      logger.error("No match data found in event.data");
+      return;
+    }
+    
+    logger.info("Match data:", JSON.stringify(data, null, 2));
+    
+    const { user1Id, user2Id } = data;
+    
+    if (!user1Id || !user2Id) {
+      logger.error(`Missing user IDs: user1Id=${user1Id}, user2Id=${user2Id}`);
+      return;
+    }
+
+    logger.info(`Processing match notification for users: ${user1Id} and ${user2Id}`);
+
+    for (const uid of [user1Id, user2Id]) {
+      try {
+        logger.info(`Fetching profile for user: ${uid}`);
+        const userDoc = await db.collection("Profiles").doc(uid).get();
+        
+        if (!userDoc.exists) {
+          logger.warn(`Profile not found for user: ${uid}`);
+          continue;
+        }
+        
+        const userData = userDoc.data();
+        logger.info(`Profile found. Available fields: ${Object.keys(userData || {}).join(", ")}`);
+        
+        const token = userData?.["fcmToken"];
+        logger.info(`FCM token for user ${uid}: ${token ? "FOUND" : "NOT FOUND"}`);
+        
+        if (token) {
+          const message = {
+            token,
+            notification: {
+              title: "🎉 It's a Match!",
+              body: "You just matched with someone new!",
+            },
+            data: {
+              type: "match",
+              matchId: event.params.matchId,
+              user1Id: user1Id,
+              user2Id: user2Id,
+            },
+            android: {
+              notification: {
+                icon: "ic_notification",
+                color: "#FF7E00",
+                sound: "default",
+              },
+            },
+            apns: {
+              payload: {
+                aps: {
+                  sound: "default",
+                  badge: 1,
+                },
+              },
+            },
+          };
+          
+          const response = await admin.messaging().send(message);
+          logger.info(`✅ Match notification sent successfully to ${uid}: ${response}`);
+        } else {
+          logger.warn(`No FCM token found for user ${uid}, skipping notification`);
+        }
+      } catch (error: any) {
+        logger.error(`❌ Error sending notification to user ${uid}:`);
+        logger.error(`Error message: ${error.message}`);
+        logger.error(`Error code: ${error.code}`);
+        if (error.errorInfo) {
+          logger.error(`Error info: ${JSON.stringify(error.errorInfo, null, 2)}`);
+        }
+      }
+    }
+    
+    logger.info("=== notifyOnNewMatch COMPLETED ===");
+  },
+);
 /**
  * Send notification for new match
  * NOTE: Commented out - using v1 API. Migrate to v2 if needed.
