@@ -1,5 +1,6 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
+const stripe = require('stripe')(functions.config().stripe?.secret_key || process.env.STRIPE_SECRET_KEY);
 
 admin.initializeApp();
 
@@ -246,3 +247,303 @@ exports.getVoteResults = functions.https.onRequest((req, res) => {
       `);
     });
 });
+
+// ============ BLACK FRIDAY BID PAYMENT FUNCTIONS ============
+
+/**
+ * Create a payment intent for a bid
+ * This authorizes the payment but doesn't charge it
+ */
+exports.createBidPaymentIntent = functions.https.onCall(async (data, context) => {
+  // Check authentication
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'User must be authenticated'
+    );
+  }
+
+  const { amount, currency, bidId, offerId, userId } = data;
+
+  // Validate input
+  if (!amount || !bidId || !offerId || !userId) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Missing required parameters'
+    );
+  }
+
+  // Ensure user can only create payment intents for themselves
+  if (context.auth.uid !== userId) {
+    throw new functions.https.HttpsError(
+      'permission-denied',
+      'User can only create payment intents for themselves'
+    );
+  }
+
+  try {
+    // Create payment intent with manual capture
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amount,
+      currency: currency || 'usd',
+      capture_method: 'manual',
+      metadata: {
+        bidId: bidId,
+        offerId: offerId,
+        userId: userId,
+        type: 'black_friday_bid',
+      },
+    });
+
+    return {
+      paymentIntentId: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret,
+    };
+  } catch (error) {
+    console.error('Error creating payment intent:', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to create payment intent: ${error.message}`
+    );
+  }
+});
+
+/**
+ * Capture a payment intent (charge the card)
+ * Called when a bid is accepted
+ */
+exports.captureBidPayment = functions.https.onCall(async (data, context) => {
+  // Check authentication
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'User must be authenticated'
+    );
+  }
+
+  const { paymentIntentId, bidId } = data;
+
+  // Validate input
+  if (!paymentIntentId || !bidId) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Missing required parameters'
+    );
+  }
+
+  try {
+    // Retrieve the payment intent to verify metadata
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    // Verify this is a Black Friday bid payment
+    if (paymentIntent.metadata.type !== 'black_friday_bid' || 
+        paymentIntent.metadata.bidId !== bidId) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'Invalid payment intent for this bid'
+      );
+    }
+
+    // Capture the payment
+    const captured = await stripe.paymentIntents.capture(paymentIntentId);
+
+    // Log the transaction
+    await admin.firestore()
+      .collection('payment_logs')
+      .add({
+        type: 'bid_payment_captured',
+        paymentIntentId: paymentIntentId,
+        bidId: bidId,
+        amount: captured.amount,
+        currency: captured.currency,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    return {
+      chargeId: captured.charges.data[0].id,
+      amount: captured.amount,
+    };
+  } catch (error) {
+    console.error('Error capturing payment:', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to capture payment: ${error.message}`
+    );
+  }
+});
+
+/**
+ * Cancel a payment intent
+ * Called when a bid is rejected, outbid, or cancelled
+ */
+exports.cancelBidPaymentIntent = functions.https.onCall(async (data, context) => {
+  // Check authentication
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'User must be authenticated'
+    );
+  }
+
+  const { paymentIntentId, bidId } = data;
+
+  // Validate input
+  if (!paymentIntentId || !bidId) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Missing required parameters'
+    );
+  }
+
+  try {
+    // Retrieve the payment intent to verify metadata
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    // Verify this is a Black Friday bid payment
+    if (paymentIntent.metadata.type !== 'black_friday_bid' || 
+        paymentIntent.metadata.bidId !== bidId) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'Invalid payment intent for this bid'
+      );
+    }
+
+    // Cancel the payment intent
+    await stripe.paymentIntents.cancel(paymentIntentId);
+
+    // Log the cancellation
+    await admin.firestore()
+      .collection('payment_logs')
+      .add({
+        type: 'bid_payment_cancelled',
+        paymentIntentId: paymentIntentId,
+        bidId: bidId,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    return {
+      success: true,
+      message: 'Payment authorization cancelled',
+    };
+  } catch (error) {
+    console.error('Error cancelling payment intent:', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to cancel payment intent: ${error.message}`
+    );
+  }
+});
+
+/**
+ * Refund a payment
+ * Called if there's an issue after a payment has been captured
+ */
+exports.refundBidPayment = functions.https.onCall(async (data, context) => {
+  // Check authentication
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'User must be authenticated'
+    );
+  }
+
+  const { chargeId, bidId, reason } = data;
+
+  // Validate input
+  if (!chargeId || !bidId) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Missing required parameters'
+    );
+  }
+
+  try {
+    // Create refund
+    const refund = await stripe.refunds.create({
+      charge: chargeId,
+      reason: reason || 'requested_by_customer',
+      metadata: {
+        bidId: bidId,
+        type: 'black_friday_bid_refund',
+      },
+    });
+
+    // Log the refund
+    await admin.firestore()
+      .collection('payment_logs')
+      .add({
+        type: 'bid_payment_refunded',
+        chargeId: chargeId,
+        refundId: refund.id,
+        bidId: bidId,
+        amount: refund.amount,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    return {
+      refundId: refund.id,
+      amount: refund.amount,
+    };
+  } catch (error) {
+    console.error('Error refunding payment:', error);
+    throw new functions.https.HttpsError(
+      'internal',
+      `Failed to refund payment: ${error.message}`
+    );
+  }
+});
+
+/**
+ * Scheduled function to automatically expire and cancel payment intents
+ * for bids that weren't accepted by midnight
+ */
+exports.expireBidPayments = functions.pubsub
+  .schedule('0 0 * * *') // Run at midnight every day
+  .timeZone('America/New_York') // ET timezone
+  .onRun(async (context) => {
+    const db = admin.firestore();
+    
+    try {
+      // Get yesterday's date key
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                     'July', 'August', 'September', 'October', 'November', 'December'];
+      const dayKey = `${months[yesterday.getMonth()]} ${yesterday.getDate()}, ${yesterday.getFullYear()}`;
+
+      // Get all pending bids from yesterday
+      const bidsSnapshot = await db.collectionGroup('bids')
+        .where('status', '==', 'pending')
+        .where('bidType', '==', 'money')
+        .get();
+
+      const batch = db.batch();
+      const cancelPromises = [];
+
+      for (const bidDoc of bidsSnapshot.docs) {
+        const bid = bidDoc.data();
+        
+        // Check if bid has a payment intent
+        if (bid.paymentIntentId) {
+          // Cancel the payment intent
+          try {
+            await stripe.paymentIntents.cancel(bid.paymentIntentId);
+            console.log(`Cancelled payment intent for bid ${bidDoc.id}`);
+          } catch (error) {
+            console.error(`Error cancelling payment intent ${bid.paymentIntentId}:`, error);
+          }
+        }
+
+        // Update bid status to expired
+        batch.update(bidDoc.ref, { status: 'expired' });
+      }
+
+      await batch.commit();
+      console.log(`Expired ${bidsSnapshot.size} bids`);
+
+      return null;
+    } catch (error) {
+      console.error('Error expiring bid payments:', error);
+      return null;
+    }
+  });
