@@ -34,10 +34,11 @@ class AppTheme {
         foregroundColor: _text,
         elevation: 0,
         centerTitle: true,
+        // Make app bar titles larger and bolder to better anchor each screen.
         titleTextStyle: const TextStyle(
           fontFamily: 'Primary',
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
           color: _text,
         ),
       ),
@@ -54,8 +55,16 @@ class AppTheme {
             displaySmall: base.textTheme.displaySmall?.copyWith(fontFamily: 'Primary'),
             headlineLarge: base.textTheme.headlineLarge?.copyWith(fontFamily: 'Primary'),
             headlineMedium: base.textTheme.headlineMedium?.copyWith(fontFamily: 'Primary'),
-            headlineSmall: base.textTheme.headlineSmall?.copyWith(fontFamily: 'Primary'),
-            titleLarge: base.textTheme.titleLarge?.copyWith(fontFamily: 'Primary'),
+            headlineSmall: base.textTheme.headlineSmall?.copyWith(
+              fontFamily: 'Primary',
+              fontSize: (base.textTheme.headlineSmall?.fontSize ?? 20) + 2,
+              fontWeight: FontWeight.w700,
+            ),
+            titleLarge: base.textTheme.titleLarge?.copyWith(
+              fontFamily: 'Primary',
+              fontSize: (base.textTheme.titleLarge?.fontSize ?? 20) + 2,
+              fontWeight: FontWeight.w700,
+            ),
           ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
