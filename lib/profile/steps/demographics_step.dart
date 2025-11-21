@@ -26,6 +26,8 @@ class DemographicsStep extends StatelessWidget {
             // Race/Ethnicity
             DropdownButtonFormField<String>(
               value: provider.raceEthnicity,
+              // Prevent long labels from causing horizontal overflow.
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Race/Ethnicity',
                 hintText: 'Select your race/ethnicity',
@@ -50,6 +52,7 @@ class DemographicsStep extends StatelessWidget {
             // Language Preference
             DropdownButtonFormField<String>(
               value: provider.languagePreference,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Preferred Language',
                 hintText: 'Select your preferred language',
@@ -76,6 +79,7 @@ class DemographicsStep extends StatelessWidget {
             // Marital Status
             DropdownButtonFormField<String>(
               value: provider.maritalStatus,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Marital Status',
                 hintText: 'Select your marital status',
@@ -98,6 +102,7 @@ class DemographicsStep extends StatelessWidget {
             // Education Level
             DropdownButtonFormField<String>(
               value: provider.educationLevel,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Education Level',
                 hintText: 'Select your education level',

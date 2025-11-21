@@ -25,7 +25,9 @@ class AuthScreen extends StatelessWidget {
                     style: const TextStyle(
                       // Use the provided Primary font for titles
                       fontFamily: 'Primary',
-                      fontSize: 80,
+                      // Slightly smaller so the word fits on one line on
+                      // smaller devices while keeping the hero feel.
+                      fontSize: 70,
                       fontWeight: FontWeight.w500,
                     ).copyWith(color: AppTheme.brandPurple),
                   ),

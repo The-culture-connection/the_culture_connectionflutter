@@ -67,6 +67,32 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _resetPassword() async {
+    final email = _email.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email to reset your password.')),
+      );
+      return;
+    }
+
+    try {
+      await _authService.sendPasswordResetEmail(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset link sent. Please check your email.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -103,7 +129,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: const InputDecoration(labelText: 'Password'),
                             validator: (v) => (v == null || v.isEmpty) ? 'Enter your password' : null,
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 12),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _isLoading ? null : _resetPassword,
+                              child: const Text('Forgot password?'),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           ElevatedButton(
                             onPressed: _isLoading ? null : _login,
                             child: _isLoading

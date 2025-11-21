@@ -49,6 +49,8 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
               // Name
               TextFormField(
                 controller: _nameController,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
                 decoration: const InputDecoration(
                   labelText: 'Full Name',
                   hintText: 'Enter your full name',
@@ -77,6 +79,8 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
                   prefixIcon: Icon(Icons.cake_outlined),
                 ),
                 keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your age';
@@ -123,7 +127,6 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
                         ? DateFormat('MMMM d, yyyy').format(provider.dueDate!)
                         : 'Tap to select',
                   ),
-                  trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
                     final date = await showDatePicker(
                       context: context,
@@ -183,6 +186,7 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
                   prefixIcon: Icon(Icons.location_on_outlined),
                 ),
                 keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your zip code';
@@ -195,12 +199,14 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
                 onChanged: (value) {
                   provider.updateBasicInfo(zipCode: value);
                 },
+                onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
               ),
               const SizedBox(height: AppTheme.spacingL),
 
               // Insurance Type
               DropdownButtonFormField<String>(
                 value: provider.insuranceType.isEmpty ? null : provider.insuranceType,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Insurance Type',
                   hintText: 'Select your insurance type',

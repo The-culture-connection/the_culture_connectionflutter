@@ -176,6 +176,9 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                           onPressed: _isLoading
                               ? null
                               : () {
+                                  // Dismiss any open keyboard when moving between steps
+                                  // or completing the profile.
+                                  FocusScope.of(context).unfocus();
                                   if (provider.currentStep < provider.totalSteps - 1) {
                                     provider.nextStep();
                                   } else {
