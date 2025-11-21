@@ -68,7 +68,9 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
 
               // Age
               TextFormField(
-                initialValue: provider.age.toString(),
+                // Show an empty field instead of "0" so users don't have to
+                // delete a default value before typing their age.
+                initialValue: provider.age == 0 ? '' : provider.age.toString(),
                 decoration: const InputDecoration(
                   labelText: 'Age',
                   hintText: 'Enter your age',
