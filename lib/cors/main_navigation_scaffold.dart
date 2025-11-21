@@ -29,9 +29,11 @@ class _MainNavigationScaffoldState extends State<MainNavigationScaffold> {
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: Colors.white.withOpacity(0.15),
-        elevation: 0,
-        indicatorColor: Colors.white.withOpacity(0.25),
+        // Make the main tab view clearly visible by using an opaque background
+        // and a subtle colored indicator instead of a very transparent white.
+        backgroundColor: Colors.white,
+        elevation: 2,
+        indicatorColor: Colors.black.withOpacity(0.05),
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
