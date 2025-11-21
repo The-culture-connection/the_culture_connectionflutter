@@ -82,7 +82,10 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: brandWhite,
+        // Use a pure white field color so inputs stand out against the light
+        // grey scaffold background. This avoids the "white on white" feel
+        // in flows like profile creation.
+        fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -98,7 +101,9 @@ class AppTheme {
         ),
       ),
       cardTheme: CardThemeData(
-        color: brandWhite,
+        // Cards should also sit on top of the slightly darker scaffold
+        // background, so keep them pure white.
+        color: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
