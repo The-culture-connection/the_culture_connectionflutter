@@ -296,3 +296,6 @@ class _BlackFridayBidDashboardScreenState extends State<BlackFridayBidDashboardS
   }
 }
 
+
+
+

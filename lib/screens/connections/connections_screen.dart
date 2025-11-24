@@ -9,7 +9,7 @@ import '../newsfeed_screen.dart';
 import '../search/user_search_screen.dart';
 import '../mentoring/mentoring_connections_screen.dart';
 import '../networking/networking_connections_screen.dart';
-import '../real_black_friday_screen.dart';
+import '../Ultra Black Friday/real_black_friday_screen.dart';
 
 class ConnectionsScreen extends ConsumerStatefulWidget {
   const ConnectionsScreen({super.key});

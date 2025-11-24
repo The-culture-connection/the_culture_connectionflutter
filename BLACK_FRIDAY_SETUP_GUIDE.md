@@ -373,3 +373,6 @@ flutter build ipa --release  # For iOS
 
 **Questions?** Review the main documentation in `BLACK_FRIDAY_EVENT_DOCUMENTATION.md`
 
+
+
+

@@ -1,0 +1,210 @@
+Goals
+Show black businesses based on themes or user insterests
+generate report to each business with their customer's activity traits and trends
+
+Functions needed
+1. computing businesses users might like beased on questionaire
+2. Code generation business name + random number
+3. Generate report for businesses based on their customer's behavior
+
+
+Screens (Flutter)
+Questionaire that only pops up the first time they open "Ultra Black Friday" 
+answer added to their profile
+questions: 
+
+1. What kinds of businesses are you most interested in?
+
+(Select all that apply)
+
+Food & Restaurants
+
+Beauty & Self-care
+
+Health & Wellness
+
+Fitness
+
+Professional Services
+
+Home Services
+
+Events & Entertainment
+
+Clothing & Apparel
+
+Tech & Gadgets
+
+Education & Learning
+
+Kids & Family
+
+Finance & Money
+
+Social & Nightlife
+
+2. What are your top goals right now?
+
+This helps with lifestyle-based targeting.
+
+(select all the apply)
+
+Save money
+
+Discover Black-owned businesses
+
+Support local
+
+Improve my health
+
+Level up professionally
+
+Learn new skills
+
+Meet new people
+
+Prepare for holidays / events
+
+3. Do you prefer online or inperson
+ single select with option: 
+ online
+ inperson 
+
+4. How often do you shop with local or Black-owned businesses?
+
+Every week
+
+A few times a month
+
+Occasionally
+
+Rarely
+
+5. Which areas do you spend the MOST money on?
+
+Multi select only three
+
+Hair
+
+Nails
+
+Skincare
+
+Fitness
+
+Food delivery
+
+Travel
+
+Childcare
+
+Learning / classes
+
+Home improvement
+
+Entertainment
+
+Clothing
+
+Personal development
+
+6. Are you currently in any of these life stages?
+
+Student
+
+Entrepreneur
+
+New professional
+
+Parent
+
+Caregiver
+
+Newly moved to the city
+
+Recently single / dating
+
+Recently graduated
+
+7. What price range do you prefer for most purchases?
+
+Do in scale of $ so one $ is cheap and $$$$$ is luxury
+
+8. What events do you enjoy?
+
+Brunch
+
+Nightlife
+
+Professional mixers
+
+Fitness groups
+
+Art events
+
+Volunteer events
+
+9. Do you have any upcoming plans?
+
+Birthday
+
+Holiday shopping
+
+Vacation
+
+Moving
+
+New job
+
+Baby
+
+Wedding
+
+Black Card Home (main tab view dismissed secondary tab view with home and my claimed deals)
+
+Header: Today’s Theme (e.g., “Wellness Wednesday”)
+
+“Businesses you might like” carousel
+Firebase function automatically runs to daily update user businesses with their preferences
+
+Grid/List of Today’s Deals (time-left badge)
+
+
+
+Deal Detail
+
+Business logo, description, discount terms
+
+“Claim Code” button (disabled if exhausted/claimed)
+
+Code preview after claim:Screen with culture_connectionflutter\assets\Blackcardanimation.gif black background play gif and then check mark that says "code claimed"
+
+code is added to "claimed codes" in subcollection under their profile
+
+
+My Black Card (Wallet)
+
+list of businesses with codes they have claimed 
+
+active/expired 
+
+button for redeem that then takes them to screen with the unique code "Business naeme + random number" and done button 
+
+and button for details 
+
+
+My Black Card (Wallet) detail screen
+
+“Where to redeem” (map/link)
+
+description
+
+logo of business
+
+website
+
+phone number
+
+social media 
+
+

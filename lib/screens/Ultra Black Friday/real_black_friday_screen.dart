@@ -1,11 +1,11 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../constants/app_colors.dart';
-import '../services/black_friday_service.dart';
-import '../models/black_friday_offer.dart';
-import 'black_friday_bid_detail_screen.dart';
-import 'black_friday_bid_dashboard_screen.dart';
+import '../../constants/app_colors.dart';
+import '../../services/black_friday_service.dart';
+import '../../models/black_friday_offer.dart';
+import '../black_friday_bid_detail_screen.dart';
+import '../black_friday_bid_dashboard_screen.dart';
 
 class RealBlackFridayScreen extends StatefulWidget {
   const RealBlackFridayScreen({super.key});
