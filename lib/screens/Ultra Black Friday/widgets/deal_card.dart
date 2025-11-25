@@ -15,17 +15,31 @@ class DealCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = deal.data() as Map<String, dynamic>;
     final businessName = data['businessName'] ?? 'Business';
-    final discountText = data['discountText'] ?? '';
-    final imageUrl = data['imageUrl'] ?? '';
-    final logoUrl = data['logoUrl'] ?? '';
-    final totalCodes = data['totalCodes'] ?? 0;
-    final claimedCount = data['claimedCount'] ?? 0;
-    final expiresAt = (data['expiresAt'] as Timestamp?)?.toDate();
+    final logoUrl = data['logoUrl'];
+    
+    // Deal is nested within the business document
+    final dealData = data['deal'] as Map<String, dynamic>?;
+    if (dealData == null) {
+      // No deal available, return empty container
+      return const SizedBox.shrink();
+    }
+    
+    final dealTitle = dealData['title'] ?? '';
+    final discountType = dealData['discountType'] ?? '';
+    final discountValue = dealData['discountValue'] ?? '';
+    final discountText = discountValue.isNotEmpty && discountType.isNotEmpty
+        ? '$discountValue$discountType'
+        : dealTitle;
+    
+    final totalCodes = data['totalCodes'] ?? dealData['totalCodes'] ?? 0;
+    final codeInventoryCount = data['codeInventoryCount'] ?? 0;
+    final codesRemaining = codeInventoryCount > 0 ? codeInventoryCount : totalCodes;
+    
+    // Note: expiresAt might not be in the deal structure, so we'll skip time badge for now
+    final expiresAt = null; // Can be added later if expiration is tracked
 
-    final codesRemaining = totalCodes - claimedCount;
     final isLowStock = codesRemaining < 10;
-    final isExpiringSoon = expiresAt != null &&
-        expiresAt.difference(DateTime.now()).inHours < 24;
+    final isExpiringSoon = false; // Can be updated if expiration is tracked
 
     return InkWell(
       onTap: onTap,
@@ -51,14 +65,14 @@ class DealCard extends StatelessWidget {
                       top: Radius.circular(16),
                     ),
                     color: Colors.grey[800],
-                    image: imageUrl.isNotEmpty
+                    image: (logoUrl != null && logoUrl.isNotEmpty)
                         ? DecorationImage(
-                            image: NetworkImage(imageUrl),
+                            image: NetworkImage(logoUrl),
                             fit: BoxFit.cover,
                           )
                         : null,
                   ),
-                  child: imageUrl.isEmpty
+                  child: (logoUrl == null || logoUrl.isEmpty)
                       ? Center(
                           child: Icon(
                             Icons.card_giftcard,
@@ -123,7 +137,7 @@ class DealCard extends StatelessWidget {
                     ),
                   ),
                 // Logo
-                if (logoUrl.isNotEmpty)
+                if (logoUrl != null && logoUrl.isNotEmpty)
                   Positioned(
                     bottom: -15,
                     left: 8,
@@ -153,7 +167,7 @@ class DealCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (logoUrl.isNotEmpty) const SizedBox(height: 18),
+                    if (logoUrl != null && logoUrl.isNotEmpty) const SizedBox(height: 18),
                     Text(
                       businessName,
                       style: const TextStyle(

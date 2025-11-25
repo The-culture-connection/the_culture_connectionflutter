@@ -6,10 +6,12 @@ import 'widgets/code_claim_animation.dart';
 
 class DealDetailScreen extends StatefulWidget {
   final String dealId;
+  final String themeDocId;
 
   const DealDetailScreen({
     Key? key,
     required this.dealId,
+    required this.themeDocId,
   }) : super(key: key);
 
   @override
@@ -33,7 +35,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
     try {
       final claimedCodes = await FirebaseFirestore.instance
-          .collection('users')
+          .collection('Profiles')
           .doc(user.uid)
           .collection('claimedCodes')
           .where('dealId', isEqualTo: widget.dealId)
@@ -65,9 +67,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('ultraBlackFriday')
-            .doc('data')
-            .collection('deals')
+            .collection('Ultra Black Friday')
+            .doc(widget.themeDocId)
+            .collection('businesses')
             .doc(widget.dealId)
             .snapshots(),
         builder: (context, snapshot) {
@@ -88,39 +90,72 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             );
           }
 
-          final deal = snapshot.data!.data() as Map<String, dynamic>;
-          final businessName = deal['businessName'] ?? 'Business';
-          final description = deal['description'] ?? '';
-          final discountText = deal['discountText'] ?? '';
-          final terms = deal['terms'] ?? '';
-          final logoUrl = deal['logoUrl'] ?? '';
-          final imageUrl = deal['imageUrl'] ?? '';
-          final totalCodes = deal['totalCodes'] ?? 0;
-          final claimedCount = deal['claimedCount'] ?? 0;
-          final expiresAt = (deal['expiresAt'] as Timestamp?)?.toDate();
-          final isActive = deal['isActive'] ?? false;
+          final businessData = snapshot.data!.data() as Map<String, dynamic>;
+          final businessName = businessData['businessName'] ?? 'Business';
+          final logoUrl = businessData['logoUrl'];
+          
+          // Deal is nested within the business document
+          final dealData = businessData['deal'] as Map<String, dynamic>?;
+          if (dealData == null) {
+            return Center(
+              child: Text(
+                'No deal available',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            );
+          }
+          
+          final description = dealData['description'] ?? '';
+          final dealTitle = dealData['title'] ?? '';
+          final discountType = dealData['discountType'] ?? '';
+          final discountValue = dealData['discountValue'] ?? '';
+          final discountText = discountValue.isNotEmpty && discountType.isNotEmpty
+              ? '$discountValue$discountType'
+              : dealTitle;
+          final terms = dealData['terms'] ?? '';
+          final redemptionInstructions = dealData['redemptionInstructions'] ?? '';
+          
+          final totalCodes = businessData['totalCodes'] ?? dealData['totalCodes'] ?? 0;
+          final codeInventoryCount = businessData['codeInventoryCount'] ?? 0;
+          final codesRemaining = codeInventoryCount > 0 ? codeInventoryCount : totalCodes;
+          
+          // Note: expiresAt might not be in the structure, so we'll skip expiration check for now
+          final expiresAt = null;
+          final isActive = businessData['appVisibility'] ?? false;
 
-          final codesRemaining = totalCodes - claimedCount;
           final isExhausted = codesRemaining <= 0;
-          final isExpired =
-              expiresAt != null && expiresAt.isBefore(DateTime.now());
-          final canClaim =
-              isActive && !isExhausted && !isExpired && !_hasClaimedThisDeal;
+          final isExpired = false; // Can be updated if expiration is tracked
+          final canClaim = isActive && !isExhausted && !isExpired && !_hasClaimedThisDeal;
 
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Deal Image
-                if (imageUrl.isNotEmpty)
+                // Deal Image (using logo or placeholder)
+                if (logoUrl != null && logoUrl.isNotEmpty)
                   Container(
                     height: 250,
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: Colors.grey[900],
                       image: DecorationImage(
-                        image: NetworkImage(imageUrl),
+                        image: NetworkImage(logoUrl),
                         fit: BoxFit.cover,
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    height: 250,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.business,
+                        size: 80,
+                        color: Colors.grey,
                       ),
                     ),
                   ),
@@ -133,7 +168,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       // Business Logo and Name
                       Row(
                         children: [
-                          if (logoUrl.isNotEmpty)
+                          if (logoUrl != null && logoUrl.isNotEmpty)
                             Container(
                               width: 60,
                               height: 60,
@@ -146,7 +181,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                 ),
                               ),
                             ),
-                          if (logoUrl.isNotEmpty) const SizedBox(width: 16),
+                          if (logoUrl != null && logoUrl.isNotEmpty) const SizedBox(width: 16),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,8 +211,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
                       const SizedBox(height: 24),
 
-                      // Time Remaining
-                      if (expiresAt != null && !isExpired)
+                      // Redemption Instructions (if available)
+                      if (redemptionInstructions != null && redemptionInstructions.isNotEmpty) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -195,24 +230,25 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(
-                                Icons.access_time,
+                                Icons.info_outline,
                                 color: Color(0xFFFF6600),
                                 size: 16,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                _getTimeRemaining(expiresAt),
-                                style: const TextStyle(
-                                  color: Color(0xFFFF6600),
-                                  fontWeight: FontWeight.bold,
+                              Expanded(
+                                child: Text(
+                                  redemptionInstructions,
+                                  style: const TextStyle(
+                                    color: Color(0xFFFF6600),
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-
-                      if (expiresAt != null && !isExpired)
                         const SizedBox(height: 16),
+                      ],
 
                       // Codes Remaining
                       Container(
@@ -289,7 +325,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: canClaim && !_isClaiming
-                              ? () => _claimCode(deal)
+                              ? () => _claimCode(businessData, dealData, discountText)
                               : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: canClaim
@@ -326,7 +362,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                         ),
                       ),
 
-                      if (_hasClaimedThisDeal && _claimedCode != null)
+                      if (_hasClaimedThisDeal)
                         Padding(
                           padding: const EdgeInsets.only(top: 16),
                           child: Container(
@@ -341,22 +377,28 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                             ),
                             child: Column(
                               children: [
-                                const Text(
-                                  'Your Code',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 14,
-                                  ),
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: Color(0xFFFF6600),
+                                  size: 48,
                                 ),
                                 const SizedBox(height: 8),
-                                Text(
-                                  _claimedCode!,
-                                  style: const TextStyle(
-                                    color: Color(0xFFFF6600),
-                                    fontSize: 24,
+                                const Text(
+                                  'Code Claimed!',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    letterSpacing: 2,
                                   ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'View your code in "My Claimed Deals"',
+                                  style: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontSize: 14,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
                               ],
                             ),
@@ -388,7 +430,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     }
   }
 
-  Future<void> _claimCode(Map<String, dynamic> deal) async {
+  Future<void> _claimCode(Map<String, dynamic> businessData, Map<String, dynamic> dealData, String discountText) async {
     setState(() {
       _isClaiming = true;
     });
@@ -399,41 +441,42 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         throw Exception('User not authenticated');
       }
 
-      // Generate unique code
-      final businessName = deal['businessName'] ?? 'BIZ';
+      // Generate unique code using randomCodePrefix from business data
+      final randomCodePrefix = businessData['randomCodePrefix'] ?? 
+          (businessData['businessName'] ?? 'BIZ').toString().replaceAll(' ', '').toUpperCase();
       final randomNumber = Random().nextInt(99999).toString().padLeft(5, '0');
-      final code = '${businessName.replaceAll(' ', '').toUpperCase()}$randomNumber';
+      final code = '$randomCodePrefix$randomNumber';
 
       final batch = FirebaseFirestore.instance.batch();
 
       // Add to user's claimed codes
       final claimedCodeRef = FirebaseFirestore.instance
-          .collection('users')
+          .collection('Profiles')
           .doc(user.uid)
           .collection('claimedCodes')
           .doc();
 
       batch.set(claimedCodeRef, {
         'dealId': widget.dealId,
-        'businessName': deal['businessName'],
-        'businessId': deal['businessId'],
+        'businessName': businessData['businessName'],
+        'businessId': businessData['businessId'],
         'code': code,
         'claimedAt': FieldValue.serverTimestamp(),
-        'expiresAt': deal['expiresAt'],
-        'discountText': deal['discountText'],
-        'logoUrl': deal['logoUrl'],
+        'discountText': discountText,
+        'logoUrl': businessData['logoUrl'],
         'isRedeemed': false,
+        'themeDocId': widget.themeDocId,
       });
 
-      // Increment claimed count
-      final dealRef = FirebaseFirestore.instance
-          .collection('ultraBlackFriday')
-          .doc('data')
-          .collection('deals')
+      // Decrement code inventory count
+      final businessRef = FirebaseFirestore.instance
+          .collection('Ultra Black Friday')
+          .doc(widget.themeDocId)
+          .collection('businesses')
           .doc(widget.dealId);
 
-      batch.update(dealRef, {
-        'claimedCount': FieldValue.increment(1),
+      batch.update(businessRef, {
+        'codeInventoryCount': FieldValue.increment(-1),
       });
 
       await batch.commit();
@@ -448,7 +491,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CodeClaimAnimationScreen(code: code),
+            builder: (context) => const CodeClaimAnimationScreen(),
           ),
         );
       }

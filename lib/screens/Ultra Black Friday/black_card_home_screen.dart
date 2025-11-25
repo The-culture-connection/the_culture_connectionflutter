@@ -17,57 +17,76 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _todayTheme = 'Loading...';
+  String? _currentThemeDocId;
+  List<String> _allThemes = [];
+  int _themeIndex = 0;
 
   @override
   void initState() {
     super.initState();
     print('🏠 BlackCardHomeScreen initState called');
     _tabController = TabController(length: 2, vsync: this);
-    _loadTodayTheme();
+    _loadThemesAndSelectToday();
   }
 
-  Future<void> _loadTodayTheme() async {
+  /// Load all themes from Firestore and select today's theme based on 24-hour rotation
+  Future<void> _loadThemesAndSelectToday() async {
     try {
-      final themeDoc = await FirebaseFirestore.instance
-          .collection('ultraBlackFriday')
-          .doc('settings')
+      print('🎨 Loading themes from Ultra Black Friday collection...');
+      
+      // Get all theme documents from Ultra Black Friday collection
+      final themesSnapshot = await FirebaseFirestore.instance
+          .collection('Ultra Black Friday')
           .get();
 
-      if (themeDoc.exists && themeDoc.data()?['todayTheme'] != null) {
+      if (themesSnapshot.docs.isEmpty) {
+        print('⚠️ No themes found in Ultra Black Friday collection');
         setState(() {
-          _todayTheme = themeDoc.data()!['todayTheme'];
+          _todayTheme = 'Daily Deals';
         });
-      } else {
-        setState(() {
-          _todayTheme = _getThemeForToday();
-        });
+        return;
       }
-    } catch (e) {
-      setState(() {
-        _todayTheme = _getThemeForToday();
-      });
-    }
-  }
 
-  String _getThemeForToday() {
-    final dayOfWeek = DateTime.now().weekday;
-    switch (dayOfWeek) {
-      case DateTime.monday:
-        return 'Motivation Monday';
-      case DateTime.tuesday:
-        return 'Tasty Tuesday';
-      case DateTime.wednesday:
-        return 'Wellness Wednesday';
-      case DateTime.thursday:
-        return 'Thrifty Thursday';
-      case DateTime.friday:
-        return 'Feel Good Friday';
-      case DateTime.saturday:
-        return 'Self-Care Saturday';
-      case DateTime.sunday:
-        return 'Support Sunday';
-      default:
-        return 'Daily Deals';
+      // Extract theme names and document IDs
+      final themes = <String, String>{}; // themeName -> docId
+      for (var doc in themesSnapshot.docs) {
+        final data = doc.data();
+        final themeName = data['Theme'] as String?;
+        if (themeName != null && themeName.isNotEmpty) {
+          themes[themeName] = doc.id;
+        }
+      }
+
+      if (themes.isEmpty) {
+        print('⚠️ No valid themes found');
+        setState(() {
+          _todayTheme = 'Daily Deals';
+        });
+        return;
+      }
+
+      _allThemes = themes.keys.toList();
+      print('🎨 Found ${_allThemes.length} themes: $_allThemes');
+
+      // Calculate which theme to show based on 24-hour rotation
+      // Use days since epoch to rotate themes
+      final now = DateTime.now();
+      final daysSinceEpoch = now.difference(DateTime(1970, 1, 1)).inDays;
+      _themeIndex = daysSinceEpoch % _allThemes.length;
+      
+      final selectedTheme = _allThemes[_themeIndex];
+      _currentThemeDocId = themes[selectedTheme];
+
+      print('🎨 Selected theme for today: $selectedTheme (index: $_themeIndex, docId: $_currentThemeDocId)');
+
+      setState(() {
+        _todayTheme = selectedTheme;
+      });
+    } catch (e) {
+      print('❌ Error loading themes: $e');
+      setState(() {
+        _todayTheme = 'Daily Deals';
+      });
     }
   }
 
@@ -109,7 +128,7 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
 
   Widget _buildHomeTab() {
     return RefreshIndicator(
-      onRefresh: _loadTodayTheme,
+      onRefresh: _loadThemesAndSelectToday,
       color: const Color(0xFFFF6600),
       backgroundColor: Colors.grey[900],
       child: CustomScrollView(
@@ -280,7 +299,13 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
                 );
               }
 
-              final deals = snapshot.data!.docs;
+              var deals = snapshot.data!.docs;
+              
+              // Filter to only show businesses that have a deal
+              deals = deals.where((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return data['deal'] != null && data['appVisibility'] == true;
+              }).toList();
 
               if (deals.isEmpty) {
                 return SliverToBoxAdapter(
@@ -329,6 +354,7 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
                             MaterialPageRoute(
                               builder: (context) => DealDetailScreen(
                                 dealId: deal.id,
+                                themeDocId: _currentThemeDocId ?? '',
                               ),
                             ),
                           );
@@ -353,31 +379,33 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
 
   Stream<QuerySnapshot> _getRecommendedBusinessesStream() {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+    if (user == null || _currentThemeDocId == null) {
       return Stream.empty();
     }
 
-    // In a real implementation, this would use the user's preferences
-    // to filter and sort businesses. For now, we'll just get all businesses.
+    // Get businesses from the current theme's businesses subcollection
     return FirebaseFirestore.instance
-        .collection('ultraBlackFriday')
-        .doc('data')
+        .collection('Ultra Black Friday')
+        .doc(_currentThemeDocId)
         .collection('businesses')
-        .where('isActive', isEqualTo: true)
+        .where('appVisibility', isEqualTo: true)
         .limit(10)
         .snapshots();
   }
 
   Stream<QuerySnapshot> _getDealsStream() {
-    final now = DateTime.now();
+    if (_currentThemeDocId == null) {
+      return Stream.empty();
+    }
 
+    // Get businesses from current theme, then filter for those with deals
+    // Since deals are stored within each business document, we'll get businesses
+    // and display them as deals if they have a deal field
     return FirebaseFirestore.instance
-        .collection('ultraBlackFriday')
-        .doc('data')
-        .collection('deals')
-        .where('isActive', isEqualTo: true)
-        .where('expiresAt', isGreaterThan: Timestamp.fromDate(now))
-        .orderBy('expiresAt', descending: false)
+        .collection('Ultra Black Friday')
+        .doc(_currentThemeDocId)
+        .collection('businesses')
+        .where('appVisibility', isEqualTo: true)
         .snapshots();
   }
 

@@ -62,7 +62,7 @@ class _MyBlackCardWalletScreenState extends State<MyBlackCardWalletScreen> {
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
-                .collection('users')
+                .collection('Profiles')
                 .doc(user.uid)
                 .collection('claimedCodes')
                 .orderBy('claimedAt', descending: true)

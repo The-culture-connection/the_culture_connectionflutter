@@ -103,29 +103,39 @@ class BusinessDetailScreen extends ConsumerWidget {
                   ),
 
                   // Display description from either field
-                  final description = business.description.isNotEmpty 
-                      ? business.description 
-                      : (business.businessDescription ?? '');
-                  if (description.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    const Text(
-                      'About',
-                      style: TextStyle(
-                        color: AppColors.electricOrange,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 16,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
+                  Builder(
+                    builder: (context) {
+                      final description = business.description.isNotEmpty 
+                          ? business.description 
+                          : (business.businessDescription ?? '');
+                      if (description.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 24),
+                          const Text(
+                            'About',
+                            style: TextStyle(
+                              color: AppColors.electricOrange,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            description,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 16,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
 
                   const SizedBox(height: 24),
                   const Divider(color: Colors.white24),

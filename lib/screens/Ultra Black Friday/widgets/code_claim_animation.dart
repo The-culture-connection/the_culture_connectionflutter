@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 class CodeClaimAnimationScreen extends StatefulWidget {
-  final String code;
-
   const CodeClaimAnimationScreen({
     Key? key,
-    required this.code,
   }) : super(key: key);
 
   @override
@@ -18,7 +15,7 @@ class _CodeClaimAnimationScreenState extends State<CodeClaimAnimationScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  bool _showCheckmark = false;
+  bool _showSuccessMessage = false;
 
   @override
   void initState() {
@@ -34,19 +31,18 @@ class _CodeClaimAnimationScreenState extends State<CodeClaimAnimationScreen>
       curve: Curves.elasticOut,
     );
 
-    _controller.forward();
-
-    // Show checkmark after animation
-    Timer(const Duration(milliseconds: 600), () {
+    // Show GIF first for 2.5 seconds, then transition to success message
+    Timer(const Duration(milliseconds: 2500), () {
       if (mounted) {
         setState(() {
-          _showCheckmark = true;
+          _showSuccessMessage = true;
         });
+        _controller.forward();
       }
     });
 
-    // Auto close after showing success
-    Timer(const Duration(seconds: 3), () {
+    // Auto close after showing success message for 3 seconds
+    Timer(const Duration(seconds: 5), () {
       if (mounted) {
         Navigator.of(context).pop();
       }
@@ -66,125 +62,103 @@ class _CodeClaimAnimationScreenState extends State<CodeClaimAnimationScreen>
       body: SafeArea(
         child: Stack(
           children: [
-            // Background animation (GIF placeholder)
-            Center(
-              child: Image.asset(
-                'assets/Blackcardanimation.gif',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  // Fallback if GIF is not available
-                  return Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    color: Colors.black,
-                    child: Center(
-                      child: Container(
-                        width: 200,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          gradient: const RadialGradient(
-                            colors: [
-                              Color(0xFFFF6600),
-                              Colors.black,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            // Content overlay
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Animated checkmark
-                  ScaleTransition(
-                    scale: _scaleAnimation,
-                    child: AnimatedOpacity(
-                      opacity: _showCheckmark ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 300),
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF6600),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFFF6600).withOpacity(0.5),
-                              blurRadius: 40,
-                              spreadRadius: 10,
+            // Animated switcher to transition between GIF and success message
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 500),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              },
+              child: _showSuccessMessage
+                  ? // Success message screen
+                    Center(
+                        key: const ValueKey('success'),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Animated checkmark
+                            ScaleTransition(
+                              scale: _scaleAnimation,
+                              child: Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF6600),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFF6600).withOpacity(0.5),
+                                      blurRadius: 40,
+                                      spreadRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.check,
+                                  size: 80,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 40),
+                            const Text(
+                              'Code Claimed!',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'Check "My Claimed Deals" to redeem',
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 16,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.check,
-                          size: 80,
-                          color: Colors.white,
+                      )
+                  : // GIF animation screen
+                    Center(
+                        key: const ValueKey('gif'),
+                        child: Transform.scale(
+                          scale: 1.3,
+                          child: Image.asset(
+                            'assets/Blackcardanimation.gif',
+                            fit: BoxFit.contain,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback if GIF is not available
+                              return Container(
+                                width: double.infinity,
+                                height: double.infinity,
+                                color: Colors.black,
+                                child: Center(
+                                  child: Container(
+                                    width: 200,
+                                    height: 200,
+                                    decoration: BoxDecoration(
+                                      gradient: const RadialGradient(
+                                        colors: [
+                                          Color(0xFFFF6600),
+                                          Colors.black,
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(100),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // Success text
-                  AnimatedOpacity(
-                    opacity: _showCheckmark ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 500),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Code Claimed!',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[900],
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: const Color(0xFFFF6600),
-                              width: 2,
-                            ),
-                          ),
-                          child: Text(
-                            widget.code,
-                            style: const TextStyle(
-                              color: Color(0xFFFF6600),
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 3,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Check "My Claimed Deals" to redeem',
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
             ),
 
             // Close button
