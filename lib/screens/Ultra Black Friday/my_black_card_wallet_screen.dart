@@ -90,19 +90,23 @@ class _MyBlackCardWalletScreenState extends State<MyBlackCardWalletScreen> {
               // Apply filter
               if (_filter == 'active') {
                 codes = codes.where((doc) {
-                  final expiresAt =
-                      (doc.data() as Map<String, dynamic>)['expiresAt']
-                          as Timestamp?;
-                  return expiresAt != null &&
-                      expiresAt.toDate().isAfter(DateTime.now());
+                  final data = doc.data() as Map<String, dynamic>;
+                  final isRedeemed = data['isRedeemed'] ?? false;
+                  final expiresAt = data['expiresAt'] as Timestamp?;
+                  final isExpired = expiresAt != null &&
+                      expiresAt.toDate().isBefore(DateTime.now());
+                  // Active = not redeemed and not expired
+                  return !isRedeemed && !isExpired;
                 }).toList();
               } else if (_filter == 'expired') {
                 codes = codes.where((doc) {
-                  final expiresAt =
-                      (doc.data() as Map<String, dynamic>)['expiresAt']
-                          as Timestamp?;
-                  return expiresAt == null ||
+                  final data = doc.data() as Map<String, dynamic>;
+                  final isRedeemed = data['isRedeemed'] ?? false;
+                  final expiresAt = data['expiresAt'] as Timestamp?;
+                  final isExpired = expiresAt != null &&
                       expiresAt.toDate().isBefore(DateTime.now());
+                  // Expired = expired OR redeemed (inactive)
+                  return isExpired || isRedeemed;
                 }).toList();
               }
 
@@ -160,7 +164,8 @@ class _MyBlackCardWalletScreenState extends State<MyBlackCardWalletScreen> {
                         MaterialPageRoute(
                           builder: (context) => BlackCardDetailScreen(
                             claimedCodeId: code.id,
-                            dealId: data['dealId'] ?? '',
+                            themeDocId: data['themeDocId'] ?? '',
+                            businessId: data['businessId'] ?? '',
                           ),
                         ),
                       );
@@ -207,12 +212,37 @@ class _MyBlackCardWalletScreenState extends State<MyBlackCardWalletScreen> {
     );
   }
 
-  void _showRedeemDialog(String codeId, Map<String, dynamic> data) {
+  void _showRedeemDialog(String codeId, Map<String, dynamic> data) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     final code = data['code'] ?? '';
     final businessName = data['businessName'] ?? 'Business';
     final expiresAt = (data['expiresAt'] as Timestamp?)?.toDate();
     final isExpired =
         expiresAt != null && expiresAt.isBefore(DateTime.now());
+    final isRedeemed = data['isRedeemed'] ?? false;
+
+    // If already redeemed, don't show dialog
+    if (isRedeemed) return;
+
+    // Mark as redeemed in Firestore
+    try {
+      await FirebaseFirestore.instance
+          .collection('Profiles')
+          .doc(user.uid)
+          .collection('claimedCodes')
+          .doc(codeId)
+          .update({
+        'isRedeemed': true,
+        'redeemedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      // If update fails, still show the dialog but log the error
+      print('Error marking code as redeemed: $e');
+    }
+
+    if (!context.mounted) return;
 
     showDialog(
       context: context,

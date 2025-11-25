@@ -105,14 +105,14 @@ class ClaimedCodeCard extends StatelessWidget {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.2),
+                                color: Colors.grey.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.green),
+                                border: Border.all(color: Colors.grey),
                               ),
                               child: const Text(
-                                'REDEEMED',
+                                'INACTIVE',
                                 style: TextStyle(
-                                  color: Colors.green,
+                                  color: Colors.grey,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -215,21 +215,29 @@ class ClaimedCodeCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: isExpired ? null : onRedeem,
+                    onPressed: (isExpired || isRedeemed) ? null : onRedeem,
                     icon: Icon(
-                      isExpired ? Icons.block : Icons.qr_code,
+                      isExpired
+                          ? Icons.block
+                          : isRedeemed
+                              ? Icons.check_circle
+                              : Icons.qr_code,
                       size: 18,
                       color: Colors.white,
                     ),
                     label: Text(
-                      isExpired ? 'Expired' : 'Redeem',
+                      isExpired
+                          ? 'Expired'
+                          : isRedeemed
+                              ? 'Inactive'
+                              : 'Redeem',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isExpired
+                      backgroundColor: (isExpired || isRedeemed)
                           ? Colors.grey[800]
                           : const Color(0xFFFF6600),
                       shape: RoundedRectangleBorder(
