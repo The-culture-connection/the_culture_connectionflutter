@@ -1592,6 +1592,298 @@ export const ticketmastersearch = onRequest(
   },
 );
 
+// ======= BUSINESSES YOU MIGHT LIKE FUNCTION =======
+/**
+ * Matches businesses to user preferences and saves top 5 recommendations to user's profile
+ * Only runs for users who have completed the questionnaire
+ * Can be called via httpsCallable from Flutter or HTTP request
+ */
+export const getBusinessesYouMightLike = onCall({
+  memory: "1GiB",
+  timeoutSeconds: 60,
+}, async (request) => {
+  try {
+    const userId = request.data?.userId;
+    
+    if (!userId) {
+      throw new Error("userId is required");
+    }
+
+    logger.info(`🔍 Finding businesses for user: ${userId}`);
+
+    // 1. Check if user has completed the questionnaire
+    const userProfileDoc = await db
+        .collection("Profiles")
+        .doc(userId)
+        .get();
+
+    if (!userProfileDoc.exists) {
+      logger.info(`User profile not found: ${userId}`);
+      return {
+        success: false,
+        error: "User profile not found",
+      };
+    }
+
+    const userProfile = userProfileDoc.data()!;
+    const questionnaireCompleted = userProfile.ultraBlackFridayQuestionnaireCompleted || false;
+
+    if (!questionnaireCompleted) {
+      logger.info(`User ${userId} has not completed questionnaire`);
+      return {
+        success: true,
+        businesses: [],
+        message: "Questionnaire not completed",
+        questionnaireCompleted: false,
+      };
+    }
+
+    // 2. Fetch user preferences
+    const preferencesDoc = await db
+        .collection("Profiles")
+        .doc(userId)
+        .collection("Ultra Black Stats")
+        .doc("preferences")
+        .get();
+
+    if (!preferencesDoc.exists) {
+      logger.info(`No preferences found for user ${userId}`);
+      return {
+        success: true,
+        businesses: [],
+        message: "No preferences found",
+      };
+    }
+
+    const preferences = preferencesDoc.data()!;
+    logger.info("User preferences:", JSON.stringify(preferences, null, 2));
+
+    // Extract preference arrays
+    const businessInterests = (preferences.businessInterests || []) as string[];
+    const spendingAreas = (preferences.spendingAreas || []) as string[];
+    const topGoals = (preferences.topGoals || []) as string[];
+    const lifeStages = (preferences.lifeStages || []) as string[];
+    const preferredMode = preferences.preferredMode as string | null;
+    const priceRange = preferences.priceRange as number | null;
+
+    // 2. Fetch all businesses from all categories
+    const allBusinesses: any[] = [];
+    
+    // Get all theme documents (categories)
+    const themesSnapshot = await db.collection("Ultra Black Friday").get();
+    
+    logger.info(`Found ${themesSnapshot.docs.length} themes/categories`);
+
+    // Fetch businesses from each category
+    for (const themeDoc of themesSnapshot.docs) {
+      const themeId = themeDoc.id;
+      const businessesSnapshot = await db
+          .collection("Ultra Black Friday")
+          .doc(themeId)
+          .collection("businesses")
+          .where("appVisibility", "==", true)
+          .get();
+
+      logger.info(`Found ${businessesSnapshot.docs.length} businesses in ${themeId}`);
+
+      for (const businessDoc of businessesSnapshot.docs) {
+        const businessData = businessDoc.data();
+        allBusinesses.push({
+          id: businessDoc.id,
+          themeId: themeId,
+          ...businessData,
+        });
+      }
+    }
+
+    logger.info(`Total businesses found: ${allBusinesses.length}`);
+
+    if (allBusinesses.length === 0) {
+      return {
+        success: true,
+        businesses: [],
+        message: "No businesses available",
+      };
+    }
+
+    // 3. Score and rank businesses based on preferences
+    const scoredBusinesses = allBusinesses.map((business) => {
+      let score = 0;
+      const matchReasons: string[] = [];
+
+      // Category matching (40% weight)
+      const businessCategory = business.mainCategory || "";
+      const businessSubCategory = business.subCategory || "";
+      
+      // Check if business category matches user interests
+      for (const interest of businessInterests) {
+        if (businessCategory.toLowerCase().includes(interest.toLowerCase()) ||
+            interest.toLowerCase().includes(businessCategory.toLowerCase())) {
+          score += 0.4;
+          matchReasons.push(`Matches your interest in ${interest}`);
+          break;
+        }
+      }
+
+      // Spending areas matching (30% weight)
+      for (const area of spendingAreas) {
+        if (businessCategory.toLowerCase().includes(area.toLowerCase()) ||
+            businessSubCategory.toLowerCase().includes(area.toLowerCase()) ||
+            area.toLowerCase().includes(businessCategory.toLowerCase())) {
+          score += 0.3;
+          matchReasons.push(`Matches your spending in ${area}`);
+          break;
+        }
+      }
+
+      // Service type matching (15% weight)
+      const serviceTypes = business.serviceTypes || [];
+      if (preferredMode && serviceTypes.includes(preferredMode)) {
+        score += 0.15;
+        matchReasons.push(`Offers ${preferredMode} services`);
+      }
+
+      // Price range matching (10% weight)
+      const businessPriceRange = business.priceRange || "";
+      if (priceRange !== null) {
+        const priceRangeString = "$".repeat(priceRange);
+        if (businessPriceRange === priceRangeString) {
+          score += 0.1;
+          matchReasons.push(`Matches your price range`);
+        } else {
+          // Partial match for adjacent price ranges
+          const priceRangeNum = businessPriceRange.length;
+          if (Math.abs(priceRangeNum - priceRange) <= 1) {
+            score += 0.05;
+          }
+        }
+      }
+
+      // Life stage matching (3% weight)
+      for (const stage of lifeStages) {
+        // Match based on business type relevance to life stage
+        if (stage.toLowerCase().includes("entrepreneur") &&
+            (businessCategory.includes("Professional") ||
+             businessCategory.includes("Business"))) {
+          score += 0.03;
+          matchReasons.push(`Relevant for ${stage}`);
+          break;
+        }
+        if (stage.toLowerCase().includes("parent") &&
+            (businessCategory.includes("Childcare") ||
+             businessCategory.includes("Education"))) {
+          score += 0.03;
+          matchReasons.push(`Relevant for ${stage}`);
+          break;
+        }
+      }
+
+      // Top goals matching (2% weight)
+      for (const goal of topGoals) {
+        const goalLower = goal.toLowerCase();
+        // Match goals to relevant business categories
+        if (goalLower.includes("health") &&
+            (businessCategory.includes("Health") ||
+             businessCategory.includes("Wellness") ||
+             businessCategory.includes("Fitness"))) {
+          score += 0.02;
+          matchReasons.push(`Helps with ${goal}`);
+          break;
+        }
+        if (goalLower.includes("professional") &&
+            (businessCategory.includes("Professional") ||
+             businessCategory.includes("Business"))) {
+          score += 0.02;
+          matchReasons.push(`Helps with ${goal}`);
+          break;
+        }
+        if (goalLower.includes("people") &&
+            (businessCategory.includes("Community") ||
+             businessCategory.includes("Education"))) {
+          score += 0.02;
+          matchReasons.push(`Helps with ${goal}`);
+          break;
+        }
+      }
+
+      return {
+        ...business,
+        matchScore: score,
+        matchReasons: matchReasons,
+      };
+    });
+
+    // 4. Sort by score and get top 5
+    const topMatches = scoredBusinesses
+        .filter((b) => b.matchScore > 0) // Only include businesses with some match
+        .sort((a, b) => b.matchScore - a.matchScore)
+        .slice(0, 5);
+
+    logger.info(`Found ${topMatches.length} matching businesses`);
+
+    // 5. Save suggested businesses to user's profile subcollection
+    const suggestedBusinessesRef = db
+        .collection("Profiles")
+        .doc(userId)
+        .collection("Suggested Businesses");
+
+    // Clear existing suggestions
+    const existingSuggestions = await suggestedBusinessesRef.get();
+    const batch = db.batch();
+    existingSuggestions.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    // Add new suggestions
+    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+    const formattedBusinesses = topMatches.map((business) => {
+      const businessData = {
+        businessId: business.id,
+        businessName: business.businessName || "",
+        logoUrl: business.logoUrl || null,
+        mainCategory: business.mainCategory || "",
+        subCategory: business.subCategory || "",
+        shortDescription: business.shortDescription || "",
+        priceRange: business.priceRange || "",
+        deal: business.deal || null,
+        themeId: business.themeId,
+        matchScore: business.matchScore,
+        matchReasons: business.matchReasons,
+        suggestedAt: timestamp,
+        address: business.address || null,
+        phone: business.phone || null,
+        email: business.email || null,
+        website: business.website || null,
+        social: business.social || null,
+        serviceTypes: business.serviceTypes || [],
+        hours: business.hours || null,
+        bookingLink: business.bookingLink || null,
+        menuLink: business.menuLink || null,
+      };
+
+      // Use businessId as document ID for easy lookup
+      const docRef = suggestedBusinessesRef.doc(business.id);
+      batch.set(docRef, businessData, { merge: true });
+
+      return businessData;
+    });
+
+    // Commit the batch
+    await batch.commit();
+    logger.info(`✅ Saved ${formattedBusinesses.length} suggested businesses to user profile`);
+
+    return {
+      success: true,
+      businesses: formattedBusinesses,
+      totalMatched: topMatches.length,
+      saved: true,
+    };
+  } catch (error: any) {
+    logger.error("❌ Error in getBusinessesYouMightLike:", error);
+    throw new Error(error.message || "Failed to get business recommendations");
+  }
+});
+
 // ======= GENERATE TEST ULTRA BLACK FRIDAY BUSINESSES =======
 /**
  * Generates 100 test businesses for Ultra Black Friday

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'deal_detail_screen.dart';
 import 'my_black_card_wallet_screen.dart';
 import 'widgets/business_carousel.dart';
@@ -20,6 +21,8 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
   String? _currentThemeDocId;
   List<String> _allThemes = [];
   int _themeIndex = 0;
+  List<Map<String, dynamic>> _recommendedBusinesses = [];
+  bool _loadingRecommendations = false;
 
   @override
   void initState() {
@@ -27,6 +30,7 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
     print('🏠 BlackCardHomeScreen initState called');
     _tabController = TabController(length: 2, vsync: this);
     _loadThemesAndSelectToday();
+    _loadRecommendedBusinesses();
   }
 
   /// Load all themes from Firestore and select today's theme based on 24-hour rotation
@@ -186,62 +190,84 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Icon(
-                    Icons.favorite,
-                    color: Colors.grey[600],
-                    size: 20,
+                  IconButton(
+                    icon: Icon(
+                      Icons.refresh,
+                      color: Colors.grey[600],
+                      size: 20,
+                    ),
+                    onPressed: _loadRecommendedBusinesses,
                   ),
                 ],
               ),
             ),
           ),
 
-          // Business Carousel
-          SliverToBoxAdapter(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _getRecommendedBusinessesStream(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        'Error loading businesses',
-                        style: TextStyle(color: Colors.grey[600]),
+          // Recommended Businesses Grid
+          if (_loadingRecommendations)
+            const SliverToBoxAdapter(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: CircularProgressIndicator(
+                    color: Color(0xFFFF6600),
+                  ),
+                ),
+              ),
+            )
+          else if (_recommendedBusinesses.isEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.favorite_border,
+                        size: 64,
+                        color: Colors.grey[800],
                       ),
-                    ),
-                  );
-                }
-
-                if (!snapshot.hasData) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFFF6600),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No recommendations available',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 16,
+                        ),
                       ),
-                    ),
-                  );
-                }
-
-                final businesses = snapshot.data!.docs;
-
-                if (businesses.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Center(
-                      child: Text(
-                        'No businesses available yet',
-                        style: TextStyle(color: Colors.grey[600]),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Complete the questionnaire to get personalized recommendations',
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-                  );
-                }
-
-                return BusinessCarousel(businesses: businesses);
-              },
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 280,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _recommendedBusinesses.length,
+                  itemBuilder: (context, index) {
+                    final business = _recommendedBusinesses[index];
+                    return Container(
+                      width: 200,
+                      margin: const EdgeInsets.only(right: 12),
+                      child: _buildRecommendedBusinessCard(business),
+                    );
+                  },
+                ),
+              ),
             ),
-          ),
 
           // Today's Deals Section Header
           const SliverToBoxAdapter(
@@ -377,20 +403,272 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
     );
   }
 
-  Stream<QuerySnapshot> _getRecommendedBusinessesStream() {
+  Future<void> _loadRecommendedBusinesses() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null || _currentThemeDocId == null) {
-      return Stream.empty();
+    if (user == null) {
+      setState(() {
+        _recommendedBusinesses = [];
+        _loadingRecommendations = false;
+      });
+      return;
     }
 
-    // Get businesses from the current theme's businesses subcollection
-    return FirebaseFirestore.instance
-        .collection('Ultra Black Friday')
-        .doc(_currentThemeDocId)
-        .collection('businesses')
-        .where('appVisibility', isEqualTo: true)
-        .limit(10)
-        .snapshots();
+    setState(() {
+      _loadingRecommendations = true;
+    });
+
+    try {
+      // First, check if user has completed questionnaire
+      final userProfileDoc = await FirebaseFirestore.instance
+          .collection('Profiles')
+          .doc(user.uid)
+          .get();
+
+      final questionnaireCompleted = userProfileDoc.data()?['ultraBlackFridayQuestionnaireCompleted'] ?? false;
+
+      if (!questionnaireCompleted) {
+        setState(() {
+          _recommendedBusinesses = [];
+          _loadingRecommendations = false;
+        });
+        return;
+      }
+
+      // Check if suggestions already exist in the subcollection
+      final suggestionsSnapshot = await FirebaseFirestore.instance
+          .collection('Profiles')
+          .doc(user.uid)
+          .collection('Suggested Businesses')
+          .orderBy('suggestedAt', descending: true)
+          .get();
+
+      // If suggestions exist and are recent (less than 24 hours old), use them
+      if (suggestionsSnapshot.docs.isNotEmpty) {
+        final firstSuggestion = suggestionsSnapshot.docs.first.data();
+        final suggestedAt = firstSuggestion['suggestedAt'] as Timestamp?;
+        
+        if (suggestedAt != null) {
+          final suggestedTime = suggestedAt.toDate();
+          final now = DateTime.now();
+          final hoursSinceSuggestion = now.difference(suggestedTime).inHours;
+          
+          // If suggestions are less than 24 hours old, use them
+          if (hoursSinceSuggestion < 24) {
+            final businesses = suggestionsSnapshot.docs
+                .map((doc) => doc.data())
+                .toList();
+            
+            setState(() {
+              _recommendedBusinesses = businesses;
+              _loadingRecommendations = false;
+            });
+            return;
+          }
+        }
+      }
+
+      // If no recent suggestions, call the function to generate new ones
+      final functions = FirebaseFunctions.instance;
+      final callable = functions.httpsCallable('getBusinessesYouMightLike');
+      
+      final result = await callable.call({'userId': user.uid});
+      final data = result.data as Map<String, dynamic>;
+
+      if (data['success'] == true && data['saved'] == true) {
+        // Reload from the subcollection after saving
+        final updatedSnapshot = await FirebaseFirestore.instance
+            .collection('Profiles')
+            .doc(user.uid)
+            .collection('Suggested Businesses')
+            .orderBy('suggestedAt', descending: true)
+            .get();
+
+        final businesses = updatedSnapshot.docs
+            .map((doc) => doc.data())
+            .toList();
+
+        setState(() {
+          _recommendedBusinesses = businesses;
+          _loadingRecommendations = false;
+        });
+      } else {
+        // If function didn't save, try to load from existing suggestions
+        if (suggestionsSnapshot.docs.isNotEmpty) {
+          final businesses = suggestionsSnapshot.docs
+              .map((doc) => doc.data())
+              .toList();
+          
+          setState(() {
+            _recommendedBusinesses = businesses;
+            _loadingRecommendations = false;
+          });
+        } else {
+          setState(() {
+            _recommendedBusinesses = [];
+            _loadingRecommendations = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading recommended businesses: $e');
+      setState(() {
+        _recommendedBusinesses = [];
+        _loadingRecommendations = false;
+      });
+    }
+  }
+
+  Widget _buildRecommendedBusinessCard(Map<String, dynamic> business) {
+    final businessName = business['businessName'] ?? 'Business';
+    final logoUrl = business['logoUrl'];
+    final deal = business['deal'] as Map<String, dynamic>?;
+    final themeId = business['themeId'] ?? '';
+    final businessId = business['businessId'] ?? '';
+
+    if (deal == null) {
+      return const SizedBox.shrink();
+    }
+
+    final dealTitle = deal['title'] ?? '';
+    final discountType = deal['discountType'] ?? '';
+    final discountValue = deal['discountValue'] ?? '';
+    final discountText = discountValue.isNotEmpty && discountType.isNotEmpty
+        ? '$discountValue$discountType'
+        : dealTitle;
+
+    final codeInventoryCount = business['codeInventoryCount'] ?? 0;
+    final totalCodes = deal['totalCodes'] ?? 0;
+    final codesRemaining = codeInventoryCount > 0 ? codeInventoryCount : totalCodes;
+    final isLowStock = codesRemaining < 10;
+
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DealDetailScreen(
+              dealId: businessId,
+              themeDocId: themeId,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.grey[800]!,
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Business Image with badges
+            Stack(
+              children: [
+                Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    color: Colors.grey[800],
+                    image: (logoUrl != null && logoUrl.toString().isNotEmpty)
+                        ? DecorationImage(
+                            image: NetworkImage(logoUrl.toString()),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: (logoUrl == null || logoUrl.toString().isEmpty)
+                      ? Center(
+                          child: Icon(
+                            Icons.card_giftcard,
+                            size: 40,
+                            color: Colors.grey[700],
+                          ),
+                        )
+                      : null,
+                ),
+                if (isLowStock)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'LOW STOCK',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            // Business Info
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    businessName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    discountText,
+                    style: const TextStyle(
+                      color: Color(0xFFFF6600),
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.confirmation_number,
+                        size: 12,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$codesRemaining left',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Stream<QuerySnapshot> _getDealsStream() {
