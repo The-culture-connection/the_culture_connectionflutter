@@ -1,0 +1,76 @@
+// Fixed logo upload code for Squarespace form
+// The issue was a path mismatch: Storage rule uses "BusinessLogos" but code used "Business Logos"
+
+// Replace the logo upload section in your Squarespace form with this:
+
+// --- Upload logo with improved timeout and error handling ---
+setStatus("info", "Uploading logo…");
+
+var logoUrl = null;
+var logoUploadError = null;
+
+try {
+  // IMPORTANT: Match the Firebase Storage rule path exactly
+  // Rule says: match /BusinessLogos/{allPaths=**}
+  // So use "BusinessLogos" (no space) not "Business Logos"
+  const storagePath = "BusinessLogos/" + businessId + "-" + logoFile.name;
+  const logoRef = storage.ref().child(storagePath);
+
+  // Check file size (optional - warn if too large)
+  const maxSizeMB = 5;
+  const fileSizeMB = logoFile.size / (1024 * 1024);
+  if (fileSizeMB > maxSizeMB) {
+    console.warn(`Logo file is ${fileSizeMB.toFixed(2)}MB. Large files may take longer to upload.`);
+  }
+
+  // Upload with progress tracking
+  const uploadTask = logoRef.put(logoFile);
+  
+  // Optional: Track upload progress
+  uploadTask.on(
+    'state_changed',
+    function(snapshot) {
+      const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+      console.log('Upload progress: ' + progress + '%');
+      setStatus("info", "Uploading logo… " + Math.round(progress) + "%");
+    },
+    function(error) {
+      console.error("Upload error:", error);
+      logoUploadError = error;
+    },
+    function() {
+      // Upload completed successfully
+      console.log("Upload completed");
+    }
+  );
+
+  // Wait for upload with increased timeout (30 seconds for larger files)
+  const timeoutPromise = new Promise(function (_, reject) {
+    setTimeout(function () {
+      reject(new Error("Logo upload timed out after 30 seconds. Please try again with a smaller file (under 2MB recommended)."));
+    }, 30000); // Increased to 30 seconds
+  });
+
+  // Race upload vs timeout
+  await Promise.race([uploadTask, timeoutPromise]);
+
+  // If upload finished, get URL
+  logoUrl = await logoRef.getDownloadURL();
+  console.log("Logo uploaded successfully:", logoUrl);
+
+} catch (uploadErr) {
+  console.error("Logo upload error:", uploadErr);
+  logoUploadError = uploadErr;
+  
+  // Provide helpful error message
+  if (uploadErr.message.includes("timed out")) {
+    logoUploadError = new Error("Upload timed out. Please try a smaller file (under 2MB) or check your internet connection.");
+  } else if (uploadErr.code === "storage/unauthorized") {
+    logoUploadError = new Error("Upload permission denied. Please contact support.");
+  } else if (uploadErr.code === "storage/canceled") {
+    logoUploadError = new Error("Upload was canceled. Please try again.");
+  }
+  
+  // We'll continue without logoUrl and still save the business
+}
+

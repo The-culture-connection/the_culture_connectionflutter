@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,6 +24,8 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
   int _themeIndex = 0;
   List<Map<String, dynamic>> _recommendedBusinesses = [];
   bool _loadingRecommendations = false;
+  Timer? _countdownTimer;
+  Duration _timeUntilNextTheme = Duration.zero;
 
   @override
   void initState() {
@@ -31,6 +34,36 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
     _tabController = TabController(length: 2, vsync: this);
     _loadThemesAndSelectToday();
     _loadRecommendedBusinesses();
+    _startCountdownTimer();
+  }
+
+  /// Calculate time until next theme (midnight of next day)
+  Duration _calculateTimeUntilNextTheme() {
+    final now = DateTime.now();
+    // Get midnight of tomorrow
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final difference = tomorrow.difference(now);
+    return difference;
+  }
+
+  /// Start the countdown timer that updates every second
+  void _startCountdownTimer() {
+    // Calculate initial time
+    _timeUntilNextTheme = _calculateTimeUntilNextTheme();
+    
+    // Update timer every second
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _timeUntilNextTheme = _calculateTimeUntilNextTheme();
+          
+          // If we've reached midnight, reload themes
+          if (_timeUntilNextTheme.inSeconds <= 0) {
+            _loadThemesAndSelectToday();
+          }
+        });
+      }
+    });
   }
 
   /// Load all themes from Firestore and select today's theme based on 24-hour rotation
@@ -85,6 +118,8 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
 
       setState(() {
         _todayTheme = selectedTheme;
+        // Update countdown when theme changes
+        _timeUntilNextTheme = _calculateTimeUntilNextTheme();
       });
     } catch (e) {
       print('❌ Error loading themes: $e');
@@ -169,6 +204,25 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: Colors.white70,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _formatCountdown(_timeUntilNextTheme),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -687,8 +741,28 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
         .snapshots();
   }
 
+  /// Format the countdown duration into a readable string
+  String _formatCountdown(Duration duration) {
+    if (duration.isNegative || duration.inSeconds <= 0) {
+      return 'New theme available!';
+    }
+    
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    final seconds = duration.inSeconds % 60;
+    
+    if (hours > 0) {
+      return 'New theme in ${hours}h ${minutes}m ${seconds}s';
+    } else if (minutes > 0) {
+      return 'New theme in ${minutes}m ${seconds}s';
+    } else {
+      return 'New theme in ${seconds}s';
+    }
+  }
+
   @override
   void dispose() {
+    _countdownTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
