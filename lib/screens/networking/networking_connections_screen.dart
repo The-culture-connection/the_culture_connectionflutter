@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -532,12 +533,15 @@ class _NetworkingConnectionsScreenState extends State<NetworkingConnectionsScree
         }
       }
       
+      // Shuffle the profiles to show them in random order
+      profiles.shuffle(Random());
+      
       setState(() {
         _profiles = profiles;
         _isLoading = false;
       });
       
-      print('✅ Networking profiles loaded: ${profiles.length} profiles');
+      print('✅ Networking profiles loaded: ${profiles.length} profiles (shuffled)');
       if (profiles.isEmpty) {
         print('⚠️ No networking profiles found. This might be due to:');
         print('   - No users matching criteria');
