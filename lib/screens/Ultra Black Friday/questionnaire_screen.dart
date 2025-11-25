@@ -619,6 +619,8 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
         throw Exception('User not authenticated');
       }
 
+      print('💾 Starting questionnaire submission for user: ${user.uid}');
+
       final questionnaireData = {
         'businessInterests': _selectedBusinessTypes.toList(),
         'topGoals': _selectedGoals.toList(),
@@ -632,23 +634,47 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
         'completedAt': FieldValue.serverTimestamp(),
       };
 
+      print('💾 Questionnaire data prepared: ${questionnaireData.keys.toList()}');
+
+      // Save to "Ultra Black Stats" subcollection under user's profile
+      print('💾 Saving to: Profiles/${user.uid}/Ultra Black Stats/preferences');
       await FirebaseFirestore.instance
-          .collection('users')
+          .collection('Profiles')
           .doc(user.uid)
-          .update({
-        'ultraBlackFridayPreferences': questionnaireData,
+          .collection('Ultra Black Stats')
+          .doc('preferences')
+          .set({
+        ...questionnaireData,
+        'questionnaireCompleted': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      print('✅ Saved to Ultra Black Stats subcollection');
+
+      // Also update the user document to mark questionnaire as completed (for quick check)
+      print('💾 Updating user document flag...');
+      await FirebaseFirestore.instance
+          .collection('Profiles')
+          .doc(user.uid)
+          .set({
         'ultraBlackFridayQuestionnaireCompleted': true,
-      });
+      }, SetOptions(merge: true));
+
+      print('✅ User document flag updated');
 
       if (mounted) {
+        print('✅ Questionnaire submission complete, popping with true');
         Navigator.of(context).pop(true);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Error saving questionnaire: $e');
+      print('❌ Stack trace: $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error saving preferences: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }

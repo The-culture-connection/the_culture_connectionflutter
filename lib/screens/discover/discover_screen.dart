@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
+import '../../utils/ultra_black_friday_navigation.dart';
 import '../search/user_search_screen.dart';
 import '../business/black_business_screen.dart';
 import '../forums/forums_screen.dart';
@@ -80,6 +81,19 @@ class DiscoverScreen extends ConsumerWidget {
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const ForumsScreen()),
                     );
+                  },
+                ),
+                const SizedBox(height: 20),
+                
+                // ULTRA BLACK FRIDAY
+                _buildDiscoverCard(
+                  context,
+                  title: 'ULTRA BLACK FRIDAY',
+                  subtitle: 'Exclusive deals & discounts',
+                  icon: Icons.card_giftcard,
+                  onTap: () {
+                    print('🔘 ULTRA BLACK FRIDAY card tapped in Discover');
+                    navigateToUltraBlackFriday(context);
                   },
                 ),
               ],

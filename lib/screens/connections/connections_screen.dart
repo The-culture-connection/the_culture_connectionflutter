@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../constants/app_colors.dart';
 import '../../utils/subscription_helper.dart';
+import '../../utils/ultra_black_friday_navigation.dart';
 import '../todays_matches_screen.dart';
 import '../events/events_screen.dart';
 import '../newsfeed_screen.dart';
@@ -186,16 +187,13 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                           
                           const SizedBox(height: 16),
                           
-                          // THE REAL BLACK FRIDAY Button
+                          
+                          // ULTRA BLACK FRIDAY Button
                           _buildActionButton(
-                            text: "THE REAL BLACK FRIDAY",
+                            text: "ULTRA BLACK FRIDAY",
                             onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const RealBlackFridayScreen(),
-                                ),
-                              );
+                              print('🔘 ULTRA BLACK FRIDAY button tapped');
+                              navigateToUltraBlackFriday(context);
                             },
                           ),
                           

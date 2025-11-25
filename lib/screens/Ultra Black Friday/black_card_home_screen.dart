@@ -21,6 +21,7 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
   @override
   void initState() {
     super.initState();
+    print('🏠 BlackCardHomeScreen initState called');
     _tabController = TabController(length: 2, vsync: this);
     _loadTodayTheme();
   }
@@ -72,6 +73,7 @@ class _BlackCardHomeScreenState extends State<BlackCardHomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    print('🏠 BlackCardHomeScreen build called');
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
