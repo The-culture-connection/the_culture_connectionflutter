@@ -111,3 +111,4 @@ match /BusinessLogos/{allPaths=**} {
 
 Make sure these rules are active in Firebase Console > Storage > Rules.
 
+

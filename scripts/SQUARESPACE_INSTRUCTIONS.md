@@ -37,3 +37,4 @@ If "nothing is showing up":
 - **"Form elements not found"**: Check that all form elements have the correct IDs
 - **Logo upload timeout**: File might be too large (>5MB), try a smaller file
 
+

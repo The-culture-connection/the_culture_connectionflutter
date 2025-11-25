@@ -89,3 +89,4 @@ logoStoragePath: logoUrl ? ("Business Logos/" + businessId + "-" + logoFile.name
 // To:
 logoStoragePath: logoUrl ? ("BusinessLogos/" + businessId + "-" + logoFile.name) : null,
 
+

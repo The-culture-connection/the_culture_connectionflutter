@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:math';
 import 'widgets/code_claim_animation.dart';
 
 class DealDetailScreen extends StatefulWidget {
@@ -441,11 +440,25 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         throw Exception('User not authenticated');
       }
 
-      // Generate unique code using randomCodePrefix from business data
-      final randomCodePrefix = businessData['randomCodePrefix'] ?? 
-          (businessData['businessName'] ?? 'BIZ').toString().replaceAll(' ', '').toUpperCase();
-      final randomNumber = Random().nextInt(99999).toString().padLeft(5, '0');
-      final code = '$randomCodePrefix$randomNumber';
+      // Fetch the discount code from Firestore at the specified path
+      // Path: /Ultra Black Friday/{themeDocId}/businesses/{businessID}/DiscountCode
+      final businessDoc = await FirebaseFirestore.instance
+          .collection('Ultra Black Friday')
+          .doc(widget.themeDocId)
+          .collection('businesses')
+          .doc(widget.dealId)
+          .get();
+
+      if (!businessDoc.exists) {
+        throw Exception('Business document not found');
+      }
+
+      final discountCode = businessDoc.data()?['DiscountCode'];
+      if (discountCode == null || discountCode.toString().isEmpty) {
+        throw Exception('Discount code not found for this business');
+      }
+
+      final code = discountCode.toString();
 
       final batch = FirebaseFirestore.instance.batch();
 
